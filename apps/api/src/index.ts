@@ -29,29 +29,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // API routes will be added here
-app.use('/api/auth', (req, res) => {
+app.use('/api/auth', (_req, res) => {
   res.json({ message: 'Auth routes coming soon' });
 });
 
-app.use('/api/content', (req, res) => {
+app.use('/api/content', (_req, res) => {
   res.json({ message: 'Content routes coming soon' });
 });
 
-app.use('/api/flashcards', (req, res) => {
+app.use('/api/flashcards', (_req, res) => {
   res.json({ message: 'Flashcard routes coming soon' });
 });
 
-app.use('/api/quizzes', (req, res) => {
+app.use('/api/quizzes', (_req, res) => {
   res.json({ message: 'Quiz routes coming soon' });
 });
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
     message: err.message || 'Internal server error',
