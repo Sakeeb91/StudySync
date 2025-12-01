@@ -94,7 +94,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifacts
           path: |
