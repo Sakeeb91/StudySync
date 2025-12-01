@@ -1,12 +1,12 @@
-# StudySync 📚
+# StudySync
 
 AI-powered study companion transforming passive note-taking into active learning.
 
-## 🚀 Overview
+## Overview
 
 StudySync is an innovative educational platform that helps students transform their lecture notes, PDFs, and study materials into interactive learning experiences. Using advanced AI, it generates flashcards, quizzes, and comprehensive study guides tailored to each student's learning style.
 
-## ✨ Key Features
+## Key Features
 
 - **AI-Powered Content Processing**: Upload PDFs, images, videos, or audio recordings
 - **Smart Flashcard Generation**: Automatically create flashcards from your study materials
@@ -16,7 +16,7 @@ StudySync is an innovative educational platform that helps students transform th
 - **Progress Tracking**: Comprehensive analytics dashboard
 - **Collaborative Learning**: Share study materials with classmates
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Next.js 14** - React framework with App Router
@@ -41,7 +41,7 @@ StudySync is an innovative educational platform that helps students transform th
 - **GitHub Actions** - CI/CD
 - **AWS/Vercel** - Cloud deployment
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 studysync/
@@ -58,7 +58,7 @@ studysync/
 └── package.json
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -106,7 +106,7 @@ The application will be available at:
 - Frontend: http://localhost:3000
 - API: http://localhost:3001
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -119,7 +119,7 @@ npm run test:watch
 npm run test:e2e
 ```
 
-## 📦 Building for Production
+## Building for Production
 
 ```bash
 # Build all packages
@@ -129,22 +129,22 @@ npm run build
 npm start
 ```
 
-## 🚢 Deployment
+## Deployment
 
 The project includes GitHub Actions workflows for automatic deployment:
 
 - **Pull Requests**: Deploy preview to Vercel
 - **Main branch**: Deploy to production
 
-## 🎯 Roadmap
+## Roadmap
 
 ### Phase 1: MVP (Months 1-3)
-- ✅ Project setup and architecture
-- ⏳ User authentication
-- ⏳ Content upload system
-- ⏳ AI flashcard generation
-- ⏳ Basic quiz system
-- ⏳ Beta testing program
+- [x] Project setup and architecture
+- [ ] User authentication
+- [ ] Content upload system
+- [ ] AI flashcard generation
+- [ ] Basic quiz system
+- [ ] Beta testing program
 
 ### Phase 2: Growth (Months 4-12)
 - [ ] Payment processing
@@ -158,22 +158,22 @@ The project includes GitHub Actions workflows for automatic deployment:
 - [ ] Advanced AI features
 - [ ] International expansion
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙋‍♂️ Support
+## Support
 
 For support, email support@studysync.ai or join our Discord server.
 
-## 👥 Team
+## Team
 
 - **Sakeeb Rahman** - Founder & Lead Developer
 
 ---
 
-Built with ❤️ for students everywhere
+Built for students everywhere
