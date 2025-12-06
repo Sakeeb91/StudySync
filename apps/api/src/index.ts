@@ -1,8 +1,9 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { rateLimit } from 'express-rate-limit';
+import authRoutes from './routes/auth.routes';
 
 // Load environment variables
 dotenv.config();
@@ -33,10 +34,8 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes will be added here
-app.use('/api/auth', (_req, res) => {
-  res.json({ message: 'Auth routes coming soon' });
-});
+// API routes
+app.use('/api/auth', authRoutes);
 
 app.use('/api/content', (_req, res) => {
   res.json({ message: 'Content routes coming soon' });
@@ -51,10 +50,11 @@ app.use('/api/quizzes', (_req, res) => {
 });
 
 // Error handling middleware
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
+  const statusCode = (err as Error & { status?: number }).status || 500;
+  res.status(statusCode).json({
+    error: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
