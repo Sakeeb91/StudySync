@@ -17,7 +17,8 @@
     "clean": "turbo clean && rm -rf node_modules",
     "db:migrate": "npm run db:migrate --workspace=@studysync/database",
     "db:push": "npm run db:push --workspace=@studysync/database",
-    "db:studio": "npm run db:studio --workspace=@studysync/database"
+    "db:studio": "npm run db:studio --workspace=@studysync/database",
+    "db:generate": "npm run db:generate --workspace=@studysync/database"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
