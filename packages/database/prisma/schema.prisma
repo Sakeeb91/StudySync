@@ -35,6 +35,7 @@ model User {
   studySessions     StudySession[]
   notes             Note[]
   concepts          Concept[]
+  betaTester        BetaTester?
 }
 
 model Session {
@@ -273,6 +274,119 @@ model ConceptRelationship {
   @@index([toConceptId])
 }
 
+// Beta Testing Program Models
+model BetaApplication {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String
+  university        String
+  major             String?
+  yearOfStudy       Int?
+  studyHoursPerWeek Int?                          // How many hours they study per week
+  currentTools      String[]                      // What tools they currently use
+  painPoints        String?                       // What problems they face with studying
+  referralSource    String?                       // How they heard about StudySync
+  status            BetaApplicationStatus @default(PENDING)
+  reviewedAt        DateTime?
+  reviewedBy        String?                       // Admin who reviewed
+  reviewNotes       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relation to user if they become a beta tester
+  betaTester        BetaTester?
+
+  @@index([status])
+  @@index([university])
+}
+
+model BetaTester {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  applicationId     String?   @unique
+  cohort            String?                       // e.g., "cohort-1", "university-pilot"
+  status            BetaTesterStatus @default(ACTIVE)
+  joinedAt          DateTime  @default(now())
+  lastActiveAt      DateTime  @default(now())
+  featuresEnabled   String[]                      // Feature flags enabled for this tester
+  notes             String?                       // Internal notes about the tester
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application       BetaApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  feedback          BetaFeedback[]
+
+  @@index([cohort])
+  @@index([status])
+}
+
+model BetaFeature {
+  id                String    @id @default(cuid())
+  name              String    @unique             // e.g., "ai-flashcards-v2", "quiz-hints"
+  description       String?
+  isEnabled         Boolean   @default(false)     // Global enable/disable
+  rolloutPercentage Int       @default(0)         // % of users who should see this (0-100)
+  allowedCohorts    String[]                      // Specific cohorts that can access
+  allowedUsers      String[]                      // Specific user IDs that can access
+  metadata          Json?                         // Additional configuration
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([isEnabled])
+}
+
+model BetaFeedback {
+  id                String    @id @default(cuid())
+  betaTesterId      String
+  userId            String
+  type              FeedbackType
+  category          FeedbackCategory
+  title             String?
+  content           String                        // Feedback content
+  rating            Int?                          // 1-5 rating if applicable
+  npsScore          Int?                          // 0-10 NPS score if applicable
+  featureName       String?                       // Which feature the feedback is about
+  pageUrl           String?                       // Where the feedback was submitted from
+  metadata          Json?                         // Additional context (browser, device, etc.)
+  status            FeedbackStatus @default(NEW)
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  resolution        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  betaTester        BetaTester @relation(fields: [betaTesterId], references: [id], onDelete: Cascade)
+
+  @@index([betaTesterId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+}
+
+model AnalyticsEvent {
+  id                String    @id @default(cuid())
+  userId            String?                       // Null for anonymous events
+  sessionId         String?                       // Browser session ID
+  eventType         String                        // e.g., "page_view", "feature_used", "button_clicked"
+  eventName         String                        // Specific event name
+  properties        Json?                         // Event-specific data
+  pageUrl           String?
+  referrer          String?
+  userAgent         String?
+  ipAddress         String?
+  country           String?
+  city              String?
+  deviceType        String?                       // desktop, mobile, tablet
+  browser           String?
+  os                String?
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([eventName])
+  @@index([createdAt])
+  @@index([sessionId])
+}
+
 // Enums
 enum SubscriptionTier {
   FREE
@@ -336,4 +450,48 @@ enum RelationshipType {
   SIMILAR_TO          // A is similar to B
   APPLIED_IN          // A is applied in B
   SUPPORTS            // A supports/validates B
+}
+
+// Beta Testing Program Enums
+enum BetaApplicationStatus {
+  PENDING             // Waiting for review
+  APPROVED            // Approved to join beta
+  REJECTED            // Application rejected
+  WAITLISTED          // On waiting list
+}
+
+enum BetaTesterStatus {
+  ACTIVE              // Currently participating
+  INACTIVE            // No longer active
+  GRADUATED           // Completed beta program
+  REMOVED             // Removed from program
+}
+
+enum FeedbackType {
+  BUG_REPORT          // Bug or issue report
+  FEATURE_REQUEST     // Request for new feature
+  GENERAL             // General feedback
+  NPS_SURVEY          // NPS survey response
+  USABILITY           // Usability/UX feedback
+  PERFORMANCE         // Performance-related feedback
+}
+
+enum FeedbackCategory {
+  UPLOAD              // Content upload feature
+  FLASHCARDS          // Flashcard generation/study
+  QUIZZES             // Quiz system
+  UI_UX               // User interface/experience
+  PERFORMANCE         // App performance
+  AUTHENTICATION      // Login/signup issues
+  KNOWLEDGE_GRAPH     // Knowledge graph feature
+  OTHER               // Other/miscellaneous
+}
+
+enum FeedbackStatus {
+  NEW                 // Just submitted
+  REVIEWING           // Being reviewed
+  IN_PROGRESS         // Being addressed
+  RESOLVED            // Issue resolved
+  WONT_FIX            // Decided not to address
+  DUPLICATE           // Duplicate of another issue
 }
