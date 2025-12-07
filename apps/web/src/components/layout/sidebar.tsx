@@ -18,6 +18,7 @@ import {
   Search,
   LogOut,
   User,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,11 @@ const mainNavItems: NavItem[] = [
     title: "Quizzes",
     href: "/quizzes",
     icon: ClipboardList,
+  },
+  {
+    title: "Knowledge Graph",
+    href: "/knowledge-graph",
+    icon: Network,
   },
   {
     title: "Study Guides",
