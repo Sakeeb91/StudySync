@@ -4,189 +4,108 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-StudySync is an AI-powered educational platform built as a monorepo using Turborepo. It transforms passive note-taking into active learning through AI-generated flashcards, quizzes, and study guides.
-
-## Repository Structure
-
-This is a Turborepo monorepo with the following workspace structure:
-- `apps/web` - Next.js 14 frontend application (@studysync/web)
-- `apps/api` - Express.js backend API server (@studysync/api)
-- `packages/database` - Prisma ORM and database schema (@studysync/database)
-- `packages/auth` - Shared authentication logic with JWT (@studysync/auth)
-- `packages/ui` - Shared UI components (planned)
-- `packages/shared` - Shared utilities (planned)
+StudySync is an AI-powered educational platform that transforms passive note-taking into active learning through AI-generated flashcards, quizzes, and study guides. Built as a Turborepo monorepo.
 
 ## Development Commands
 
-### Initial Setup
 ```bash
-# Install dependencies
-npm install
-
-# Setup environment
-cp .env.example .env
-# Edit .env with actual values
-
-# Start Docker services
-docker-compose up -d
-
-# Setup database
-npm run db:push        # Push schema to database
-npm run db:generate    # Generate Prisma client
-```
-
-### Daily Development
-```bash
-# Start all development servers concurrently
+# Start all services (frontend + backend)
 npm run dev
 
-# Individual app development
-npm run dev --workspace=@studysync/web    # Frontend only
-npm run dev --workspace=@studysync/api    # Backend only
+# Run single workspace
+npm run dev --workspace=@studysync/web     # Frontend on :3000
+npm run dev --workspace=@studysync/api     # Backend on :3001
 
-# Database operations
-npm run db:studio      # Open Prisma Studio GUI
-npm run db:migrate     # Run migrations in dev
-npm run db:push        # Push schema changes without migration
+# Database (requires Docker services running first)
+docker-compose up -d                       # Start PostgreSQL, Redis, MinIO
+npm run db:push                            # Push schema changes
+npm run db:generate                        # Generate Prisma client
+npm run db:studio                          # Open Prisma GUI
+npm run db:migrate                         # Run migrations
+
+# Testing and linting
+npm run lint                               # Lint all packages
+npm run test                               # Run all tests
+npm run test --workspace=@studysync/api    # Test single package
+
+# Build
+npm run build                              # Build all packages
+npm run clean                              # Remove build artifacts and node_modules
 ```
 
-### Building and Testing
-```bash
-# Build all packages
-npm run build
+## Repository Structure
 
-# Run all tests
-npm run test
-
-# Lint all packages
-npm run lint
-
-# Format code
-npm run format
-
-# Clean build artifacts
-npm run clean
+```
+apps/
+  web/           # Next.js 14 frontend (@studysync/web) - src/app/ uses App Router
+  api/           # Express.js backend (@studysync/api)
+packages/
+  database/      # Prisma schema and client (@studysync/database)
+  auth/          # JWT authentication logic (@studysync/auth)
+  shared/        # Shared utilities (planned)
+  ui/            # Shared UI components (planned)
 ```
 
-### Running Specific Commands
-```bash
-# Run command in specific workspace
-npm run <command> --workspace=@studysync/<package>
+## Architecture
 
-# Example: Run tests only for API
-npm run test --workspace=@studysync/api
+### Package Dependencies
 ```
-
-## Architecture Overview
+@studysync/web → (calls API endpoints)
+@studysync/api → @studysync/auth → @studysync/database
+```
 
 ### Authentication Flow
-1. User credentials are validated using schemas in `packages/auth/src/index.ts`
-2. Passwords are hashed using bcrypt with salt rounds of 10
-3. JWT tokens are generated with 7-day expiration for access tokens
-4. Refresh tokens have 30-day expiration
-5. Session management includes user data and token expiry tracking
+1. `packages/auth/src/index.ts` - Validation schemas (Zod), password hashing (bcrypt), JWT utilities
+2. `apps/api/src/routes/auth.routes.ts` - Auth endpoints with stricter rate limiting (10 req/15min)
+3. `apps/api/src/middleware/auth.middleware.ts` - `authenticateToken`, `optionalAuth`, `requireSubscription` middleware
+4. `apps/api/src/controllers/auth.controller.ts` - Full auth implementation
 
-### Database Architecture
-- PostgreSQL as primary database with Prisma ORM
-- Redis for caching and rate limiting
-- MinIO (optional) for S3-compatible file storage in development
+Token expiration: Access 7 days, Refresh 30 days. Sessions stored in database.
 
-Key models and relationships:
-- `User` - Central user model with subscription tiers (FREE, PREMIUM, STUDENT_PLUS, UNIVERSITY)
-- `Upload` - File uploads with processing status (PENDING, PROCESSING, COMPLETED, FAILED)
-- `FlashcardSet` and `Flashcard` - Spaced repetition system with difficulty levels
-- `Quiz`, `Question`, `Answer` - Quiz system supporting multiple question types
-- `Note` and `NoteConnection` - Knowledge graph for concept relationships
+### Auth API Endpoints
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Invalidate session (protected)
+- `GET /api/auth/me` - Get current user (protected)
+- `PUT /api/auth/me` - Update profile (protected)
+- `PUT /api/auth/me/password` - Change password (protected)
+- `DELETE /api/auth/me` - Delete account (protected)
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset with token
+- `GET /api/auth/verify-email/:token` - Email verification
 
-### API Structure
-The Express API (`apps/api/src/index.ts`) implements:
-- Helmet for security headers
-- CORS with credential support
-- Rate limiting (100 requests per 15 minutes per IP)
-- Structured routes: `/api/auth`, `/api/content`, `/api/flashcards`, `/api/quizzes`
+### Database Models
+Key models in `packages/database/prisma/schema.prisma`:
+- `User` - Subscription tiers: FREE, PREMIUM, STUDENT_PLUS, UNIVERSITY
+- `Session` - JWT refresh tokens and verification tokens
+- `Upload` - Processing status: PENDING → PROCESSING → COMPLETED/FAILED
+- `FlashcardSet`/`Flashcard` - Spaced repetition with EASY/MEDIUM/HARD difficulty
+- `Quiz`/`Question`/`Answer` - Types: MULTIPLE_CHOICE, TRUE_FALSE, SHORT_ANSWER, ESSAY
+- `Note`/`NoteConnection` - Knowledge graph for concept relationships
 
-### Frontend Architecture
-Next.js 14 with App Router structure:
-- TypeScript for type safety
-- Tailwind CSS for styling
-- Server components by default
-- API calls to backend at `NEXT_PUBLIC_API_URL`
+### Request Validation
+All inputs validated with Zod schemas. Auth schemas exported from `@studysync/auth`.
 
-## Environment Configuration
+## Environment Variables
 
-Critical environment variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` and `JWT_REFRESH_SECRET` - Authentication tokens
-- `OPENAI_API_KEY` - For AI features
-- `REDIS_URL` - Redis connection
-- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend
+Required (see `.env.example`):
+- `DATABASE_URL` - PostgreSQL connection
+- `JWT_SECRET` / `JWT_REFRESH_SECRET` - Auth tokens
+- `REDIS_URL` - Caching
+- `OPENAI_API_KEY` - AI features
 
-Development defaults:
-- Frontend: http://localhost:3000
-- API: http://localhost:3001
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-- MinIO Console: http://localhost:9001
+Ports: Frontend :3000, API :3001, PostgreSQL :5432, Redis :6379, MinIO :9001
 
-## Turborepo Pipeline
+## CI/CD
 
-The build pipeline (`turbo.json`) defines task dependencies:
-- `build` depends on upstream builds (`^build`)
-- `dev` runs persistently without caching
-- `test` and `lint` depend on upstream tasks
-- Environment variables are properly passed to build tasks
+GitHub Actions (`.github/workflows/ci.yml`):
+1. Lint → 2. Tests (with PostgreSQL) → 3. Build → 4. Security scan
+- PRs: Deploy preview
+- Main branch: Deploy production
 
-## Key Technical Decisions
+## Docker
 
-1. **Monorepo with Turborepo**: Enables code sharing and coordinated deployments
-2. **Prisma ORM**: Type-safe database access with migrations
-3. **JWT Authentication**: Stateless auth with refresh token rotation
-4. **Express + TypeScript**: Type-safe backend with familiar Node.js patterns
-5. **Next.js 14 App Router**: Latest React patterns with server components
-6. **PostgreSQL + Redis**: Relational data with caching layer
+`docker-compose.yml` provides PostgreSQL 15, Redis 7, MinIO (S3-compatible storage).
 
-## AI Integration Points
-
-The codebase is prepared for AI features:
-- OpenAI SDK configured in API dependencies
-- LangChain for AI orchestration
-- Content processing pipeline in `Upload` model
-- Vector database support planned for semantic search
-
-## Common Development Patterns
-
-### Adding New API Routes
-1. Create route handler in `apps/api/src/routes/`
-2. Add validation schemas using Zod
-3. Implement business logic with Prisma client
-4. Add rate limiting if needed
-5. Update CORS settings if required
-
-### Database Schema Changes
-1. Modify `packages/database/prisma/schema.prisma`
-2. Run `npm run db:migrate` to create migration
-3. Run `npm run db:generate` to update client
-4. Update dependent packages as needed
-
-### Adding Shared Packages
-1. Create new directory in `packages/`
-2. Add package.json with `@studysync/` namespace
-3. Update root `package.json` workspaces if needed
-4. Configure TypeScript with proper build output
-
-## Current Implementation Status
-
-Completed (SSC-5):
-- Project architecture and setup
-- Database schema design
-- Authentication package structure
-- Basic API structure
-- Frontend scaffolding
-- CI/CD pipeline configuration
-
-Pending (from Linear roadmap):
-- SSC-10: User Authentication implementation
-- SSC-6: Content Upload system
-- SSC-7: AI Flashcard generation
-- SSC-8: Quiz system
-- SSC-9: Core UI/UX implementation
+API Dockerfile uses multi-stage build with non-root user.
