@@ -196,3 +196,113 @@ export const startAttemptSchema = z.object({
 });
 
 export type StartAttemptInput = z.infer<typeof startAttemptSchema>;
+
+// ============================================
+// KNOWLEDGE GRAPH VALIDATION SCHEMAS
+// ============================================
+
+// Concept entity type enum matching Prisma schema
+export const ConceptEntityTypeEnum = z.enum([
+  'PERSON',
+  'THEORY',
+  'FORMULA',
+  'EVENT',
+  'TERM',
+  'PROCESS',
+  'PRINCIPLE',
+  'CONCEPT',
+  'EXAMPLE',
+  'DATE',
+]);
+
+export type ConceptEntityType = z.infer<typeof ConceptEntityTypeEnum>;
+
+// Relationship type enum matching Prisma schema
+export const RelationshipTypeEnum = z.enum([
+  'PREREQUISITE',
+  'RELATED',
+  'OPPOSITE',
+  'EXAMPLE_OF',
+  'PART_OF',
+  'CAUSES',
+  'DERIVED_FROM',
+  'SIMILAR_TO',
+  'APPLIED_IN',
+  'SUPPORTS',
+]);
+
+export type RelationshipType = z.infer<typeof RelationshipTypeEnum>;
+
+// Create concept schema
+export const createConceptSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
+  description: z.string().max(1000, 'Description must be less than 1000 characters').optional(),
+  entityType: ConceptEntityTypeEnum,
+  uploadId: z.string().optional(),
+  importance: z.number().min(0).max(1).optional().default(0.5),
+  lectureOrder: z.number().int().min(0).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export type CreateConceptInput = z.infer<typeof createConceptSchema>;
+
+// Update concept schema
+export const updateConceptSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  entityType: ConceptEntityTypeEnum.optional(),
+  importance: z.number().min(0).max(1).optional(),
+  lectureOrder: z.number().int().min(0).optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+});
+
+export type UpdateConceptInput = z.infer<typeof updateConceptSchema>;
+
+// Create relationship schema
+export const createRelationshipSchema = z.object({
+  fromConceptId: z.string(),
+  toConceptId: z.string(),
+  relationshipType: RelationshipTypeEnum,
+  strength: z.number().min(0).max(1).optional().default(1.0),
+  description: z.string().max(500).optional(),
+  bidirectional: z.boolean().optional().default(false),
+});
+
+export type CreateRelationshipInput = z.infer<typeof createRelationshipSchema>;
+
+// Update relationship schema
+export const updateRelationshipSchema = z.object({
+  relationshipType: RelationshipTypeEnum.optional(),
+  strength: z.number().min(0).max(1).optional(),
+  description: z.string().max(500).optional().nullable(),
+  bidirectional: z.boolean().optional(),
+});
+
+export type UpdateRelationshipInput = z.infer<typeof updateRelationshipSchema>;
+
+// Extract concepts from upload schema
+export const extractConceptsSchema = z.object({
+  uploadId: z.string(),
+  options: z.object({
+    maxConcepts: z.number().min(5).max(50).optional().default(30),
+    minImportance: z.number().min(0).max(1).optional().default(0.3),
+    focusEntityTypes: z.array(ConceptEntityTypeEnum).optional(),
+    extractRelationships: z.boolean().optional().default(true),
+    includeContext: z.boolean().optional().default(false),
+  }).optional().default({}),
+});
+
+export type ExtractConceptsInput = z.infer<typeof extractConceptsSchema>;
+
+// Semantic search schema
+export const semanticSearchSchema = z.object({
+  query: z.string().min(1, 'Search query is required').max(500),
+  options: z.object({
+    limit: z.number().min(1).max(50).optional().default(10),
+    minSimilarity: z.number().min(0).max(1).optional().default(0.5),
+    entityTypes: z.array(ConceptEntityTypeEnum).optional(),
+    uploadId: z.string().optional(),
+  }).optional().default({}),
+});
+
+export type SemanticSearchInput = z.infer<typeof semanticSearchSchema>;
