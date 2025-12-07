@@ -50,19 +50,30 @@ model Upload {
   id                String    @id @default(cuid())
   userId            String
   fileName          String
+  originalName      String              // Original filename from user
   fileType          FileType
+  mimeType          String              // e.g., application/pdf, image/png
   fileUrl           String
-  fileSize          Int
+  fileSize          Int                 // Size in bytes
   processingStatus  ProcessingStatus @default(PENDING)
-  extractedText     String?
-  metadata          Json?
+  processingError   String?             // Error message if processing failed
+  extractedText     String?             // Extracted text content
+  textLength        Int?                // Character count of extracted text
+  pageCount         Int?                // For PDFs/documents
+  metadata          Json?               // Additional metadata (course, topic, etc.)
+  storageKey        String?             // S3/MinIO storage key
+  checksum          String?             // File hash for deduplication
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  processedAt       DateTime?           // When processing completed
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   flashcardSets     FlashcardSet[]
   quizzes           Quiz[]
   notes             Note[]
+
+  @@index([userId])
+  @@index([processingStatus])
 }
 
 // Flashcard system
