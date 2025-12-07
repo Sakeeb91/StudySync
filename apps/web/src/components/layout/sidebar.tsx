@@ -19,6 +19,8 @@ import {
   LogOut,
   User,
   Network,
+  FlaskConical,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -100,6 +102,20 @@ const secondaryNavItems: NavItem[] = [
     title: "Settings",
     href: "/settings",
     icon: Settings,
+  },
+];
+
+const betaNavItems: NavItem[] = [
+  {
+    title: "Beta Program",
+    href: "/dashboard/beta",
+    icon: FlaskConical,
+    badge: "Beta",
+  },
+  {
+    title: "Send Feedback",
+    href: "/dashboard/feedback",
+    icon: MessageSquare,
   },
 ];
 
@@ -257,6 +273,63 @@ export function Sidebar({ className }: SidebarProps) {
                 >
                   <item.icon className="h-5 w-5" />
                   {item.title}
+                </Link>
+              );
+            })}
+          </div>
+
+          <Separator className="my-2" />
+
+          <div className="space-y-1 py-2">
+            {!isCollapsed && (
+              <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Beta Program
+              </p>
+            )}
+            {betaNavItems.map((item) => {
+              const isActive = pathname === item.href;
+              return isCollapsed ? (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-lg mx-auto",
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="flex items-center gap-4">
+                    {item.title}
+                    {item.badge && (
+                      <span className="ml-auto text-muted-foreground">
+                        {item.badge}
+                      </span>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.title}
+                  {item.badge && (
+                    <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
