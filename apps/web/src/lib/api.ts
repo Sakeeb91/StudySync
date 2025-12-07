@@ -498,3 +498,348 @@ export async function getUploads(params: { page?: number; limit?: number; status
   const query = searchParams.toString();
   return fetchApi(`/uploads${query ? `?${query}` : ''}`);
 }
+
+// ============================================
+// KNOWLEDGE GRAPH API FUNCTIONS
+// ============================================
+
+// Entity types for concepts
+export type ConceptEntityType =
+  | 'PERSON'
+  | 'THEORY'
+  | 'FORMULA'
+  | 'EVENT'
+  | 'TERM'
+  | 'PROCESS'
+  | 'PRINCIPLE'
+  | 'CONCEPT'
+  | 'EXAMPLE'
+  | 'DATE';
+
+// Relationship types between concepts
+export type RelationshipType =
+  | 'PREREQUISITE'
+  | 'RELATED'
+  | 'OPPOSITE'
+  | 'EXAMPLE_OF'
+  | 'PART_OF'
+  | 'CAUSES'
+  | 'DERIVED_FROM'
+  | 'SIMILAR_TO'
+  | 'APPLIED_IN'
+  | 'SUPPORTS';
+
+export interface Concept {
+  id: string;
+  userId: string;
+  uploadId?: string;
+  name: string;
+  description?: string;
+  entityType: ConceptEntityType;
+  importance: number;
+  lectureOrder?: number;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  upload?: {
+    id: string;
+    originalName: string;
+  };
+  _count?: {
+    outgoingRelations: number;
+    incomingRelations: number;
+  };
+}
+
+export interface ConceptRelationship {
+  id: string;
+  fromConceptId: string;
+  toConceptId: string;
+  relationshipType: RelationshipType;
+  strength: number;
+  description?: string;
+  bidirectional: boolean;
+  fromConcept?: { id: string; name: string; entityType: ConceptEntityType };
+  toConcept?: { id: string; name: string; entityType: ConceptEntityType };
+}
+
+// Concept CRUD
+
+export interface GetConceptsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  entityType?: ConceptEntityType;
+  uploadId?: string;
+}
+
+export interface GetConceptsResponse {
+  concepts: Concept[];
+  pagination: PaginationInfo;
+}
+
+export async function getConcepts(params: GetConceptsParams = {}): Promise<GetConceptsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', params.page.toString());
+  if (params.limit) searchParams.set('limit', params.limit.toString());
+  if (params.search) searchParams.set('search', params.search);
+  if (params.entityType) searchParams.set('entityType', params.entityType);
+  if (params.uploadId) searchParams.set('uploadId', params.uploadId);
+
+  const query = searchParams.toString();
+  return fetchApi<GetConceptsResponse>(`/knowledge-graph/concepts${query ? `?${query}` : ''}`);
+}
+
+export interface CreateConceptParams {
+  name: string;
+  description?: string;
+  entityType: ConceptEntityType;
+  uploadId?: string;
+  importance?: number;
+  lectureOrder?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export async function createConcept(params: CreateConceptParams): Promise<{ message: string; concept: Concept }> {
+  return fetchApi('/knowledge-graph/concepts', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface GetConceptResponse {
+  concept: Concept & {
+    outgoingRelations: ConceptRelationship[];
+    incomingRelations: ConceptRelationship[];
+  };
+}
+
+export async function getConcept(id: string): Promise<GetConceptResponse> {
+  return fetchApi<GetConceptResponse>(`/knowledge-graph/concepts/${id}`);
+}
+
+export async function updateConcept(
+  id: string,
+  params: Partial<Omit<CreateConceptParams, 'uploadId'>>
+): Promise<{ message: string; concept: Concept }> {
+  return fetchApi(`/knowledge-graph/concepts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function deleteConcept(id: string): Promise<{ message: string }> {
+  return fetchApi(`/knowledge-graph/concepts/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// Relationship CRUD
+
+export interface CreateRelationshipParams {
+  fromConceptId: string;
+  toConceptId: string;
+  relationshipType: RelationshipType;
+  strength?: number;
+  description?: string;
+  bidirectional?: boolean;
+}
+
+export async function createRelationship(
+  params: CreateRelationshipParams
+): Promise<{ message: string; relationship: ConceptRelationship }> {
+  return fetchApi('/knowledge-graph/relationships', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function updateRelationship(
+  id: string,
+  params: Partial<Omit<CreateRelationshipParams, 'fromConceptId' | 'toConceptId'>>
+): Promise<{ message: string; relationship: ConceptRelationship }> {
+  return fetchApi(`/knowledge-graph/relationships/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function deleteRelationship(id: string): Promise<{ message: string }> {
+  return fetchApi(`/knowledge-graph/relationships/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// AI Extraction
+
+export interface ExtractConceptsParams {
+  uploadId: string;
+  options?: {
+    maxConcepts?: number;
+    minImportance?: number;
+    focusEntityTypes?: ConceptEntityType[];
+    extractRelationships?: boolean;
+    includeContext?: boolean;
+  };
+}
+
+export interface ExtractionResult {
+  message: string;
+  extraction: {
+    conceptsCreated: number;
+    relationshipsCreated: number;
+    topicSummary: string;
+    processingTimeMs: number;
+    entityTypeDistribution: Record<ConceptEntityType, number>;
+  };
+}
+
+export async function extractConcepts(params: ExtractConceptsParams): Promise<ExtractionResult> {
+  return fetchApi('/knowledge-graph/extract', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+// Semantic Search
+
+export interface SemanticSearchParams {
+  query: string;
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    entityTypes?: ConceptEntityType[];
+    uploadId?: string;
+  };
+}
+
+export interface SemanticSearchResult {
+  conceptId: string;
+  name: string;
+  description: string | null;
+  entityType: ConceptEntityType;
+  similarity: number;
+  uploadName?: string;
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  results: SemanticSearchResult[];
+  total: number;
+}
+
+export async function semanticSearch(params: SemanticSearchParams): Promise<SemanticSearchResponse> {
+  return fetchApi('/knowledge-graph/search', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface SimilarConceptsResponse {
+  concept: string;
+  similar: SemanticSearchResult[];
+  total: number;
+}
+
+export async function findSimilarConcepts(id: string, limit?: number): Promise<SimilarConceptsResponse> {
+  const query = limit ? `?limit=${limit}` : '';
+  return fetchApi(`/knowledge-graph/concepts/${id}/similar${query}`);
+}
+
+// Knowledge Graph Visualization
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  entityType: ConceptEntityType;
+  importance: number;
+  description?: string;
+  uploadId?: string;
+  uploadName?: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  relationshipType: RelationshipType;
+  strength: number;
+  bidirectional: boolean;
+}
+
+export interface KnowledgeGraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  metadata: {
+    totalNodes: number;
+    totalEdges: number;
+    entityTypeDistribution: Record<string, number>;
+    relationshipTypeDistribution: Record<string, number>;
+  };
+}
+
+export interface GetGraphParams {
+  uploadId?: string;
+  entityTypes?: ConceptEntityType[];
+  minImportance?: number;
+}
+
+export async function getKnowledgeGraph(params: GetGraphParams = {}): Promise<KnowledgeGraphData> {
+  const searchParams = new URLSearchParams();
+  if (params.uploadId) searchParams.set('uploadId', params.uploadId);
+  if (params.entityTypes) searchParams.set('entityTypes', params.entityTypes.join(','));
+  if (params.minImportance) searchParams.set('minImportance', params.minImportance.toString());
+
+  const query = searchParams.toString();
+  return fetchApi<KnowledgeGraphData>(`/knowledge-graph/graph${query ? `?${query}` : ''}`);
+}
+
+// Concept Strength Scores
+
+export interface ConceptStrength {
+  conceptId: string;
+  name: string;
+  overallStrength: number;
+  metrics: {
+    connectionCount: number;
+    averageRelationshipStrength: number;
+    importance: number;
+    isPrerequisiteFor: number;
+    hasPrerequisites: number;
+  };
+}
+
+export interface GetConceptStrengthsParams {
+  uploadId?: string;
+  limit?: number;
+}
+
+export interface ConceptStrengthsResponse {
+  strengths: ConceptStrength[];
+  total: number;
+}
+
+export async function getConceptStrengths(params: GetConceptStrengthsParams = {}): Promise<ConceptStrengthsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.uploadId) searchParams.set('uploadId', params.uploadId);
+  if (params.limit) searchParams.set('limit', params.limit.toString());
+
+  const query = searchParams.toString();
+  return fetchApi<ConceptStrengthsResponse>(`/knowledge-graph/strengths${query ? `?${query}` : ''}`);
+}
+
+// Knowledge Graph Statistics
+
+export interface KnowledgeGraphStats {
+  stats: {
+    totalConcepts: number;
+    totalRelationships: number;
+    averageImportance: number;
+    uploadsWithConcepts: number;
+  };
+  entityTypeDistribution: Record<ConceptEntityType, number>;
+}
+
+export async function getKnowledgeGraphStats(): Promise<KnowledgeGraphStats> {
+  return fetchApi('/knowledge-graph/stats');
+}
