@@ -34,6 +34,7 @@ model User {
   quizAttempts      QuizAttempt[]
   studySessions     StudySession[]
   notes             Note[]
+  concepts          Concept[]
 }
 
 model Session {
@@ -71,6 +72,7 @@ model Upload {
   flashcardSets     FlashcardSet[]
   quizzes           Quiz[]
   notes             Note[]
+  concepts          Concept[]
 
   @@index([userId])
   @@index([processingStatus])
@@ -223,6 +225,54 @@ model NoteConnection {
   @@unique([fromNoteId, toNoteId])
 }
 
+// Knowledge Graph - Concepts
+model Concept {
+  id                String    @id @default(cuid())
+  userId            String
+  uploadId          String?             // Source upload (lecture/document)
+  name              String              // Concept name
+  description       String?             // Brief description
+  entityType        ConceptEntityType   // Type of entity (PERSON, THEORY, FORMULA, etc.)
+  importance        Float     @default(0.5)  // Importance weight (0-1)
+  embedding         Float[]             // Vector embedding for semantic search
+  metadata          Json?               // Additional metadata (e.g., professor emphasis)
+  lectureOrder      Int?                // Order in which concept appeared in lectures
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upload            Upload?   @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+
+  // Relations for knowledge graph edges
+  outgoingRelations ConceptRelationship[] @relation("FromConcept")
+  incomingRelations ConceptRelationship[] @relation("ToConcept")
+
+  @@index([userId])
+  @@index([uploadId])
+  @@index([entityType])
+  @@unique([userId, name, uploadId])
+}
+
+// Knowledge Graph - Relationships between concepts
+model ConceptRelationship {
+  id                String    @id @default(cuid())
+  fromConceptId     String
+  toConceptId       String
+  relationshipType  RelationshipType
+  strength          Float     @default(1.0)   // Relationship strength (0-1)
+  description       String?                   // Optional description of relationship
+  bidirectional     Boolean   @default(false) // Whether relationship goes both ways
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  fromConcept       Concept   @relation("FromConcept", fields: [fromConceptId], references: [id], onDelete: Cascade)
+  toConcept         Concept   @relation("ToConcept", fields: [toConceptId], references: [id], onDelete: Cascade)
+
+  @@unique([fromConceptId, toConceptId, relationshipType])
+  @@index([fromConceptId])
+  @@index([toConceptId])
+}
+
 // Enums
 enum SubscriptionTier {
   FREE
@@ -258,4 +308,32 @@ enum QuestionType {
   TRUE_FALSE
   SHORT_ANSWER
   ESSAY
+}
+
+// Knowledge Graph Entity Types
+enum ConceptEntityType {
+  PERSON              // Historical figures, scientists, authors
+  THEORY              // Scientific theories, hypotheses
+  FORMULA             // Mathematical or scientific formulas
+  EVENT               // Historical events, experiments
+  TERM                // Technical terms, definitions
+  PROCESS             // Procedures, methods, workflows
+  PRINCIPLE           // Laws, rules, principles
+  CONCEPT             // General concepts, ideas
+  EXAMPLE             // Examples, case studies
+  DATE                // Important dates, time periods
+}
+
+// Knowledge Graph Relationship Types
+enum RelationshipType {
+  PREREQUISITE        // A must be understood before B
+  RELATED             // A and B are related concepts
+  OPPOSITE            // A and B are contrasting/opposite
+  EXAMPLE_OF          // A is an example of B
+  PART_OF             // A is a component/part of B
+  CAUSES              // A causes or leads to B
+  DERIVED_FROM        // A is derived/developed from B
+  SIMILAR_TO          // A is similar to B
+  APPLIED_IN          // A is applied in B
+  SUPPORTS            // A supports/validates B
 }
