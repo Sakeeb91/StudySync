@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
 import flashcardRoutes from './routes/flashcard.routes';
 import quizRoutes from './routes/quiz.routes';
+import knowledgeGraphRoutes from './routes/knowledgeGraph.routes';
 
 // Load environment variables
 dotenv.config();
@@ -50,6 +51,9 @@ app.use('/api/flashcards', flashcardRoutes);
 
 // Quiz routes with AI generation
 app.use('/api/quizzes', quizRoutes);
+
+// Knowledge Graph routes with AI extraction
+app.use('/api/knowledge-graph', knowledgeGraphRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
