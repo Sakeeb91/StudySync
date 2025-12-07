@@ -42,6 +42,15 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiting for AI generation (more restrictive due to API costs)
+const generationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 generation requests per window
+  message: { error: 'Too many generation requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Error handling middleware for multer errors
 const handleMulterError = (
   err: Error,
@@ -114,6 +123,19 @@ router.delete('/:id', (req: Request, res: Response, next: NextFunction) =>
 // POST /api/uploads/:id/retry - Retry processing a failed upload
 router.post('/:id/retry', (req: Request, res: Response, next: NextFunction) =>
   uploadController.retryProcessing(req, res, next)
+);
+
+// POST /api/uploads/:id/generate-flashcards - Generate flashcards from upload
+router.post(
+  '/:id/generate-flashcards',
+  generationLimiter,
+  (req: Request, res: Response, next: NextFunction) =>
+    uploadController.generateFlashcards(req, res, next)
+);
+
+// GET /api/uploads/:id/estimate-flashcards - Estimate flashcard count
+router.get('/:id/estimate-flashcards', (req: Request, res: Response, next: NextFunction) =>
+  uploadController.estimateFlashcards(req, res, next)
 );
 
 export default router;

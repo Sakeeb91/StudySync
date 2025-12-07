@@ -3,6 +3,7 @@ import { PrismaClient, FileType, ProcessingStatus } from '@prisma/client';
 import { z } from 'zod';
 import { storageService } from '../services/storage.service';
 import { textExtractionService } from '../services/textExtraction.service';
+import { flashcardGenerationService, GenerationOptions } from '../services/flashcardGeneration.service';
 
 const prisma = new PrismaClient();
 
@@ -505,6 +506,148 @@ export class UploadController {
       });
 
       res.json({ message: 'Processing retry started' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Generate flashcards from an upload
+   */
+  async generateFlashcards(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { id } = req.params;
+      const options = req.body.options as GenerationOptions | undefined;
+      const title = req.body.title as string | undefined;
+      const description = req.body.description as string | undefined;
+
+      // Get the upload
+      const upload = await prisma.upload.findFirst({
+        where: {
+          id,
+          userId: req.user.userId,
+        },
+      });
+
+      if (!upload) {
+        res.status(404).json({ error: 'Upload not found' });
+        return;
+      }
+
+      if (upload.processingStatus !== ProcessingStatus.COMPLETED) {
+        res.status(400).json({
+          error: 'Upload is not yet processed',
+          status: upload.processingStatus,
+        });
+        return;
+      }
+
+      if (!upload.extractedText) {
+        res.status(400).json({ error: 'No text content available for this upload' });
+        return;
+      }
+
+      // Generate flashcards using AI
+      const result = await flashcardGenerationService.generateFromText(
+        upload.extractedText,
+        options
+      );
+
+      if (result.flashcards.length === 0) {
+        res.status(400).json({ error: 'Could not generate flashcards from this content' });
+        return;
+      }
+
+      // Create the flashcard set
+      const flashcardSet = await prisma.flashcardSet.create({
+        data: {
+          userId: req.user.userId,
+          uploadId: upload.id,
+          title: title || `Flashcards from ${upload.originalName}`,
+          description: description || `AI-generated flashcards from ${upload.originalName}`,
+          tags: result.metadata.topics.slice(0, 10),
+        },
+      });
+
+      // Create all flashcards
+      await prisma.flashcard.createMany({
+        data: result.flashcards.map(card => ({
+          setId: flashcardSet.id,
+          question: card.question,
+          answer: card.answer,
+          hint: card.hint,
+          difficulty: card.difficulty,
+        })),
+      });
+
+      // Fetch the complete set with cards
+      const completeSet = await prisma.flashcardSet.findUnique({
+        where: { id: flashcardSet.id },
+        include: {
+          flashcards: true,
+          _count: { select: { flashcards: true } },
+        },
+      });
+
+      res.status(201).json({
+        message: 'Flashcards generated successfully',
+        flashcardSet: completeSet,
+        generation: {
+          totalGenerated: result.metadata.totalGenerated,
+          averageQualityScore: result.metadata.averageQualityScore,
+          topics: result.metadata.topics,
+          processingTimeMs: result.metadata.processingTimeMs,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Estimate flashcard count for an upload
+   */
+  async estimateFlashcards(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { id } = req.params;
+
+      const upload = await prisma.upload.findFirst({
+        where: {
+          id,
+          userId: req.user.userId,
+        },
+      });
+
+      if (!upload) {
+        res.status(404).json({ error: 'Upload not found' });
+        return;
+      }
+
+      if (!upload.extractedText) {
+        res.status(400).json({ error: 'No text content available' });
+        return;
+      }
+
+      const estimate = flashcardGenerationService.estimateCardCount(upload.extractedText);
+
+      res.json({
+        upload: {
+          id: upload.id,
+          fileName: upload.originalName,
+          textLength: upload.textLength,
+        },
+        estimate,
+      });
     } catch (error) {
       next(error);
     }
