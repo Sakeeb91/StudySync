@@ -843,3 +843,252 @@ export interface KnowledgeGraphStats {
 export async function getKnowledgeGraphStats(): Promise<KnowledgeGraphStats> {
   return fetchApi('/knowledge-graph/stats');
 }
+
+// ============================================
+// BETA TESTING PROGRAM API FUNCTIONS
+// ============================================
+
+// Types
+export type BetaApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WAITLISTED';
+export type BetaTesterStatus = 'ACTIVE' | 'INACTIVE' | 'GRADUATED' | 'REMOVED';
+export type FeedbackType = 'BUG_REPORT' | 'FEATURE_REQUEST' | 'GENERAL' | 'NPS_SURVEY' | 'USABILITY' | 'PERFORMANCE';
+export type FeedbackCategory = 'UPLOAD' | 'FLASHCARDS' | 'QUIZZES' | 'UI_UX' | 'PERFORMANCE' | 'AUTHENTICATION' | 'KNOWLEDGE_GRAPH' | 'OTHER';
+export type FeedbackStatus = 'NEW' | 'REVIEWING' | 'IN_PROGRESS' | 'RESOLVED' | 'WONT_FIX' | 'DUPLICATE';
+
+export interface BetaApplication {
+  id: string;
+  email: string;
+  name: string;
+  university: string;
+  major?: string;
+  yearOfStudy?: number;
+  studyHoursPerWeek?: number;
+  currentTools: string[];
+  painPoints?: string;
+  referralSource?: string;
+  status: BetaApplicationStatus;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface BetaTester {
+  id: string;
+  cohort?: string;
+  status: BetaTesterStatus;
+  featuresEnabled: string[];
+  joinedAt: string;
+  lastActiveAt: string;
+}
+
+export interface BetaFeature {
+  name: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BetaFeedback {
+  id: string;
+  type: FeedbackType;
+  category: FeedbackCategory;
+  title?: string;
+  content: string;
+  rating?: number;
+  npsScore?: number;
+  status: FeedbackStatus;
+  resolution?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+// Beta Application Endpoints
+
+export interface SubmitBetaApplicationParams {
+  email: string;
+  name: string;
+  university: string;
+  major?: string;
+  yearOfStudy?: number;
+  studyHoursPerWeek?: number;
+  currentTools?: string[];
+  painPoints?: string;
+  referralSource?: string;
+}
+
+export interface SubmitBetaApplicationResponse {
+  message: string;
+  application: {
+    id: string;
+    email: string;
+    name: string;
+    status: BetaApplicationStatus;
+    createdAt: string;
+  };
+}
+
+export async function submitBetaApplication(params: SubmitBetaApplicationParams): Promise<SubmitBetaApplicationResponse> {
+  return fetchApi('/beta/apply', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface GetApplicationStatusResponse {
+  application: BetaApplication;
+}
+
+export async function getBetaApplicationStatus(email: string): Promise<GetApplicationStatusResponse> {
+  return fetchApi(`/beta/application/${encodeURIComponent(email)}`);
+}
+
+// Beta Tester Status
+
+export interface GetBetaTesterStatusResponse {
+  isBetaTester: boolean;
+  betaTester?: BetaTester;
+}
+
+export async function getBetaTesterStatus(): Promise<GetBetaTesterStatusResponse> {
+  return fetchApi('/beta/status');
+}
+
+// Feedback Endpoints
+
+export interface SubmitFeedbackParams {
+  type: FeedbackType;
+  category: FeedbackCategory;
+  title?: string;
+  content: string;
+  rating?: number;
+  npsScore?: number;
+  featureName?: string;
+  pageUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SubmitFeedbackResponse {
+  message: string;
+  feedback: {
+    id: string;
+    type: FeedbackType;
+    category: FeedbackCategory;
+    status: FeedbackStatus;
+    createdAt: string;
+  };
+}
+
+export async function submitFeedback(params: SubmitFeedbackParams): Promise<SubmitFeedbackResponse> {
+  return fetchApi('/beta/feedback', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface GetUserFeedbackResponse {
+  feedback: BetaFeedback[];
+}
+
+export async function getUserFeedback(): Promise<GetUserFeedbackResponse> {
+  return fetchApi('/beta/feedback');
+}
+
+// Analytics Event Tracking
+
+export interface TrackEventParams {
+  eventType: string;
+  eventName: string;
+  properties?: Record<string, unknown>;
+  pageUrl?: string;
+  referrer?: string;
+  sessionId?: string;
+}
+
+export interface TrackEventResponse {
+  success: boolean;
+  eventId: string;
+}
+
+export async function trackEvent(params: TrackEventParams): Promise<TrackEventResponse> {
+  return fetchApi('/beta/events', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface TrackBatchEventsResponse {
+  success: boolean;
+  eventsTracked: number;
+  eventsSkipped: number;
+}
+
+export async function trackBatchEvents(events: TrackEventParams[]): Promise<TrackBatchEventsResponse> {
+  return fetchApi('/beta/events/batch', {
+    method: 'POST',
+    body: JSON.stringify({ events }),
+  });
+}
+
+// Feature Flags
+
+export interface GetEnabledFeaturesResponse {
+  features: BetaFeature[];
+}
+
+export async function getEnabledFeatures(): Promise<GetEnabledFeaturesResponse> {
+  return fetchApi('/beta/features');
+}
+
+export interface CheckFeatureResponse {
+  enabled: boolean;
+  feature?: BetaFeature;
+}
+
+export async function checkFeature(featureName: string): Promise<CheckFeatureResponse> {
+  return fetchApi(`/beta/features/${encodeURIComponent(featureName)}`);
+}
+
+// Beta Metrics (for dashboard)
+
+export interface BetaMetricsResponse {
+  applications: {
+    total: number;
+    byStatus: Array<{ status: BetaApplicationStatus; count: number }>;
+  };
+  testers: {
+    total: number;
+    byStatus: Array<{ status: BetaTesterStatus; count: number }>;
+    byCohort: Array<{ cohort: string; count: number }>;
+    activeLastWeek: number;
+  };
+  feedback: {
+    total: number;
+    byType: Array<{ type: FeedbackType; count: number }>;
+    averageNps: number | null;
+  };
+}
+
+export async function getBetaMetrics(): Promise<BetaMetricsResponse> {
+  return fetchApi('/beta/admin/metrics');
+}
+
+// Analytics Summary (for dashboard)
+
+export interface AnalyticsSummaryResponse {
+  summary: {
+    totalEvents: number;
+    uniqueUsers: number;
+    dateRange: { start: string; end: string };
+  };
+  eventsByType: Array<{ type: string; count: number }>;
+  eventsByDay: Array<{ date: string; count: number }>;
+  topPages: Array<{ url: string; count: number }>;
+  deviceBreakdown: Array<{ device: string; count: number }>;
+}
+
+export async function getAnalyticsSummary(startDate?: string, endDate?: string): Promise<AnalyticsSummaryResponse> {
+  const searchParams = new URLSearchParams();
+  if (startDate) searchParams.set('startDate', startDate);
+  if (endDate) searchParams.set('endDate', endDate);
+
+  const query = searchParams.toString();
+  return fetchApi(`/beta/admin/analytics${query ? `?${query}` : ''}`);
+}
