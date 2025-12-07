@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { rateLimit } from 'express-rate-limit';
 import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
+import flashcardRoutes from './routes/flashcard.routes';
 
 // Load environment variables
 dotenv.config();
@@ -43,9 +44,8 @@ app.use('/api/content', (_req, res) => {
   res.json({ message: 'Content routes coming soon' });
 });
 
-app.use('/api/flashcards', (_req, res) => {
-  res.json({ message: 'Flashcard routes coming soon' });
-});
+// Flashcard routes with AI generation
+app.use('/api/flashcards', flashcardRoutes);
 
 app.use('/api/quizzes', (_req, res) => {
   res.json({ message: 'Quiz routes coming soon' });
