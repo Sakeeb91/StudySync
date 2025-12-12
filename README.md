@@ -40,6 +40,7 @@ StudySync is an innovative educational platform that helps students transform th
 - **Docker** - Containerization
 - **GitHub Actions** - CI/CD
 - **AWS/Vercel** - Cloud deployment
+- **Stripe** - Payment processing and subscriptions
 
 ## Project Structure
 
@@ -105,6 +106,24 @@ npm run dev
 The application will be available at:
 - Frontend: http://localhost:3000
 - API: http://localhost:3001
+
+## Payment & Subscription Setup
+
+StudySync includes a complete payment processing and subscription management system powered by Stripe. To configure payments:
+
+1. See **[PAYMENT_SETUP.md](./PAYMENT_SETUP.md)** for detailed setup instructions
+2. Create a Stripe account and get your API keys
+3. Configure subscription plans in Stripe Dashboard
+4. Set up webhooks for automatic subscription updates
+5. Add Stripe credentials to your `.env` file
+
+The payment system supports:
+- Multiple subscription tiers (FREE, PREMIUM, STUDENT_PLUS)
+- Monthly and yearly billing
+- Free trials and student discounts
+- Stripe Checkout and Customer Portal
+- Webhook-based subscription updates
+- Feature gating and usage limits
 
 ## Testing
 
