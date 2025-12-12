@@ -9,6 +9,7 @@ import flashcardRoutes from './routes/flashcard.routes';
 import quizRoutes from './routes/quiz.routes';
 import knowledgeGraphRoutes from './routes/knowledgeGraph.routes';
 import betaRoutes from './routes/beta.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +59,9 @@ app.use('/api/knowledge-graph', knowledgeGraphRoutes);
 
 // Beta Testing Program routes
 app.use('/api/beta', betaRoutes);
+
+// Subscription and Payment routes
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
