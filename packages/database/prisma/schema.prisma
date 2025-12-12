@@ -80,6 +80,25 @@ model Subscription {
   @@index([stripeSubscriptionId])
 }
 
+model Payment {
+  id                    String    @id @default(cuid())
+  userId                String
+  stripePaymentIntentId String    @unique
+  amount                Int                 // Amount in cents
+  currency              String    @default("usd")
+  status                PaymentStatus
+  description           String?
+  receiptUrl            String?
+  metadata              Json?               // Additional payment metadata
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripePaymentIntentId])
+}
+
 // Content upload and processing
 model Upload {
   id                String    @id @default(cuid())
@@ -538,4 +557,13 @@ enum SubscriptionStatus {
   INCOMPLETE          // Subscription created but payment incomplete
   INCOMPLETE_EXPIRED  // Payment never completed
   INACTIVE            // No active subscription (default for FREE tier)
+}
+
+enum PaymentStatus {
+  SUCCEEDED           // Payment succeeded
+  PROCESSING          // Payment is processing
+  REQUIRES_ACTION     // Requires customer action (3D Secure, etc.)
+  REQUIRES_PAYMENT_METHOD  // Payment method required
+  CANCELED            // Payment canceled
+  FAILED              // Payment failed
 }
