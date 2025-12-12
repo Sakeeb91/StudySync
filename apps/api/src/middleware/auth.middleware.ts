@@ -62,7 +62,32 @@ export const requireSubscription = (tiers: string[]) => {
       res.status(403).json({
         error: 'This feature requires a premium subscription',
         requiredTiers: tiers,
-        currentTier: req.user.subscriptionTier
+        currentTier: req.user.subscriptionTier,
+        upgradeUrl: '/pricing',
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+// New middleware: Require active subscription
+export const requireActiveSubscription = () => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const subscriptionStatuses = ['ACTIVE', 'TRIALING'];
+    const userStatus = req.user.subscriptionStatus || 'INACTIVE';
+
+    if (!subscriptionStatuses.includes(userStatus)) {
+      res.status(403).json({
+        error: 'This feature requires an active subscription',
+        currentStatus: userStatus,
+        upgradeUrl: '/pricing',
       });
       return;
     }
