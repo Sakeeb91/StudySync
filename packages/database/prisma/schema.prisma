@@ -23,6 +23,13 @@ model User {
   yearOfStudy       Int?
   subscriptionTier  SubscriptionTier @default(FREE)
   subscriptionEnd   DateTime?
+
+  // Stripe payment integration
+  stripeCustomerId      String?   @unique
+  stripeSubscriptionId  String?   @unique
+  subscriptionStatus    SubscriptionStatus @default(INACTIVE)
+  trialEndsAt           DateTime?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -494,4 +501,15 @@ enum FeedbackStatus {
   RESOLVED            // Issue resolved
   WONT_FIX            // Decided not to address
   DUPLICATE           // Duplicate of another issue
+}
+
+// Payment & Subscription Status Enums
+enum SubscriptionStatus {
+  ACTIVE              // Active subscription
+  CANCELED            // Canceled but still active until period end
+  PAST_DUE            // Payment failed, retrying
+  TRIALING            // In trial period
+  INCOMPLETE          // Subscription created but payment incomplete
+  INCOMPLETE_EXPIRED  // Payment never completed
+  INACTIVE            // No active subscription (default for FREE tier)
 }
