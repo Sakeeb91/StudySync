@@ -223,6 +223,280 @@ export class StripeService {
       throw new Error('Failed to detach payment method');
     }
   }
+
+  // ============================================================================
+  // SUBSCRIPTION OPERATIONS
+  // ============================================================================
+
+  /**
+   * Create a new subscription for a customer
+   * @param customerId - Stripe customer ID
+   * @param priceId - Stripe price ID
+   * @param options - Additional subscription options
+   * @returns Stripe subscription object
+   */
+  async createSubscription(
+    customerId: string,
+    priceId: string,
+    options?: {
+      trialPeriodDays?: number;
+      metadata?: Record<string, string>;
+      promotionCode?: string;
+    }
+  ): Promise<Stripe.Subscription> {
+    try {
+      const subscriptionData: Stripe.SubscriptionCreateParams = {
+        customer: customerId,
+        items: [{ price: priceId }],
+        payment_behavior: 'default_incomplete',
+        payment_settings: { save_default_payment_method: 'on_subscription' },
+        expand: ['latest_invoice.payment_intent'],
+        metadata: options?.metadata,
+      };
+
+      if (options?.trialPeriodDays) {
+        subscriptionData.trial_period_days = options.trialPeriodDays;
+      }
+
+      if (options?.promotionCode) {
+        subscriptionData.promotion_code = options.promotionCode;
+      }
+
+      const subscription = await stripe.subscriptions.create(subscriptionData);
+
+      // Save subscription to database
+      await this.saveSubscriptionToDatabase(subscription);
+
+      console.log(`✅ Created subscription ${subscription.id} for customer ${customerId}`);
+      return subscription;
+    } catch (error) {
+      console.error('Failed to create subscription:', error);
+      throw new Error('Failed to create subscription');
+    }
+  }
+
+  /**
+   * Update an existing subscription
+   * @param subscriptionId - Stripe subscription ID
+   * @param updates - Subscription update data
+   * @returns Updated subscription object
+   */
+  async updateSubscription(
+    subscriptionId: string,
+    updates: {
+      priceId?: string;
+      metadata?: Record<string, string>;
+      cancelAtPeriodEnd?: boolean;
+    }
+  ): Promise<Stripe.Subscription> {
+    try {
+      const updateData: Stripe.SubscriptionUpdateParams = {};
+
+      if (updates.priceId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        updateData.items = [
+          {
+            id: subscription.items.data[0].id,
+            price: updates.priceId,
+          },
+        ];
+        updateData.proration_behavior = 'create_prorations'; // Prorate on upgrade/downgrade
+      }
+
+      if (updates.metadata) {
+        updateData.metadata = updates.metadata;
+      }
+
+      if (updates.cancelAtPeriodEnd !== undefined) {
+        updateData.cancel_at_period_end = updates.cancelAtPeriodEnd;
+      }
+
+      const subscription = await stripe.subscriptions.update(subscriptionId, updateData);
+
+      // Update subscription in database
+      await this.saveSubscriptionToDatabase(subscription);
+
+      console.log(`✅ Updated subscription ${subscriptionId}`);
+      return subscription;
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+      throw new Error('Failed to update subscription');
+    }
+  }
+
+  /**
+   * Cancel a subscription
+   * @param subscriptionId - Stripe subscription ID
+   * @param immediately - Cancel immediately or at period end
+   * @returns Canceled subscription object
+   */
+  async cancelSubscription(
+    subscriptionId: string,
+    immediately: boolean = false
+  ): Promise<Stripe.Subscription> {
+    try {
+      let subscription: Stripe.Subscription;
+
+      if (immediately) {
+        subscription = await stripe.subscriptions.cancel(subscriptionId);
+      } else {
+        subscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: true,
+        });
+      }
+
+      // Update subscription in database
+      await this.saveSubscriptionToDatabase(subscription);
+
+      console.log(`✅ Canceled subscription ${subscriptionId} (immediate: ${immediately})`);
+      return subscription;
+    } catch (error) {
+      console.error('Failed to cancel subscription:', error);
+      throw new Error('Failed to cancel subscription');
+    }
+  }
+
+  /**
+   * Reactivate a canceled subscription
+   * @param subscriptionId - Stripe subscription ID
+   * @returns Reactivated subscription object
+   */
+  async reactivateSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+    try {
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: false,
+      });
+
+      // Update subscription in database
+      await this.saveSubscriptionToDatabase(subscription);
+
+      console.log(`✅ Reactivated subscription ${subscriptionId}`);
+      return subscription;
+    } catch (error) {
+      console.error('Failed to reactivate subscription:', error);
+      throw new Error('Failed to reactivate subscription');
+    }
+  }
+
+  /**
+   * Get subscription by ID
+   * @param subscriptionId - Stripe subscription ID
+   * @returns Stripe subscription object
+   */
+  async getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      return subscription;
+    } catch (error) {
+      console.error('Failed to retrieve subscription:', error);
+      throw new Error('Failed to retrieve subscription');
+    }
+  }
+
+  /**
+   * List all subscriptions for a customer
+   * @param customerId - Stripe customer ID
+   * @returns List of subscriptions
+   */
+  async listSubscriptions(customerId: string): Promise<Stripe.Subscription[]> {
+    try {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        expand: ['data.default_payment_method'],
+      });
+      return subscriptions.data;
+    } catch (error) {
+      console.error('Failed to list subscriptions:', error);
+      throw new Error('Failed to list subscriptions');
+    }
+  }
+
+  /**
+   * Save subscription to database
+   * @param subscription - Stripe subscription object
+   */
+  private async saveSubscriptionToDatabase(subscription: Stripe.Subscription): Promise<void> {
+    try {
+      // Get user from customer ID
+      const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: subscription.customer as string },
+      });
+
+      if (!user) {
+        console.warn(`User not found for customer ${subscription.customer}`);
+        return;
+      }
+
+      // Map Stripe subscription status to our enum
+      const statusMap: Record<string, any> = {
+        active: 'ACTIVE',
+        past_due: 'PAST_DUE',
+        canceled: 'CANCELED',
+        unpaid: 'PAST_DUE',
+        trialing: 'TRIALING',
+        incomplete: 'INCOMPLETE',
+        incomplete_expired: 'INCOMPLETE_EXPIRED',
+      };
+
+      const subscriptionStatus = statusMap[subscription.status] || 'INACTIVE';
+
+      // Determine subscription tier from price ID
+      const priceId = subscription.items.data[0].price.id;
+      let subscriptionTier: 'FREE' | 'PREMIUM' | 'STUDENT_PLUS' | 'UNIVERSITY' = 'FREE';
+
+      // This will be replaced by actual price IDs from pricing config
+      if (priceId.includes('premium')) {
+        subscriptionTier = 'PREMIUM';
+      } else if (priceId.includes('student_plus') || priceId.includes('plus')) {
+        subscriptionTier = 'STUDENT_PLUS';
+      } else if (priceId.includes('university')) {
+        subscriptionTier = 'UNIVERSITY';
+      }
+
+      // Upsert subscription in database
+      await prisma.subscription.upsert({
+        where: { stripeSubscriptionId: subscription.id },
+        create: {
+          userId: user.id,
+          stripeSubscriptionId: subscription.id,
+          stripePriceId: priceId,
+          status: subscriptionStatus,
+          currentPeriodStart: new Date(subscription.current_period_start * 1000),
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+          trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
+          trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        },
+        update: {
+          status: subscriptionStatus,
+          currentPeriodStart: new Date(subscription.current_period_start * 1000),
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+          stripePriceId: priceId,
+        },
+      });
+
+      // Update user subscription info
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus,
+          subscriptionTier,
+          subscriptionEnd: new Date(subscription.current_period_end * 1000),
+          trialEndsAt: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        },
+      });
+
+      console.log(`✅ Saved subscription ${subscription.id} to database`);
+    } catch (error) {
+      console.error('Failed to save subscription to database:', error);
+      // Don't throw error - webhook will retry
+    }
+  }
 }
 
 export const stripeService = new StripeService();
