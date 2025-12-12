@@ -497,6 +497,148 @@ export class StripeService {
       // Don't throw error - webhook will retry
     }
   }
+
+  // ============================================================================
+  // PAYMENT OPERATIONS
+  // ============================================================================
+
+  /**
+   * Create a checkout session for subscription
+   * @param customerId - Stripe customer ID
+   * @param priceId - Stripe price ID
+   * @param options - Checkout session options
+   * @returns Stripe checkout session
+   */
+  async createCheckoutSession(
+    customerId: string,
+    priceId: string,
+    options: {
+      successUrl: string;
+      cancelUrl: string;
+      trialPeriodDays?: number;
+      metadata?: Record<string, string>;
+    }
+  ): Promise<Stripe.Checkout.Session> {
+    try {
+      const sessionData: Stripe.Checkout.SessionCreateParams = {
+        customer: customerId,
+        mode: 'subscription',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: options.successUrl,
+        cancel_url: options.cancelUrl,
+        metadata: options.metadata,
+        allow_promotion_codes: true,
+        billing_address_collection: 'auto',
+        payment_method_types: ['card'],
+      };
+
+      if (options.trialPeriodDays) {
+        sessionData.subscription_data = {
+          trial_period_days: options.trialPeriodDays,
+        };
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionData);
+      console.log(`✅ Created checkout session ${session.id}`);
+      return session;
+    } catch (error) {
+      console.error('Failed to create checkout session:', error);
+      throw new Error('Failed to create checkout session');
+    }
+  }
+
+  /**
+   * Create billing portal session
+   * @param customerId - Stripe customer ID
+   * @param returnUrl - Return URL after portal session
+   * @returns Stripe billing portal session
+   */
+  async createBillingPortalSession(
+    customerId: string,
+    returnUrl: string
+  ): Promise<Stripe.BillingPortal.Session> {
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      });
+      console.log(`✅ Created billing portal session for customer ${customerId}`);
+      return session;
+    } catch (error) {
+      console.error('Failed to create billing portal session:', error);
+      throw new Error('Failed to create billing portal session');
+    }
+  }
+
+  /**
+   * Create payment intent for one-time payments
+   * @param amount - Amount in cents
+   * @param customerId - Stripe customer ID
+   * @param options - Payment intent options
+   * @returns Stripe payment intent
+   */
+  async createPaymentIntent(
+    amount: number,
+    customerId: string,
+    options?: {
+      currency?: string;
+      description?: string;
+      metadata?: Record<string, string>;
+    }
+  ): Promise<Stripe.PaymentIntent> {
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency: options?.currency || 'usd',
+        customer: customerId,
+        description: options?.description,
+        metadata: options?.metadata,
+        automatic_payment_methods: { enabled: true },
+      });
+
+      console.log(`✅ Created payment intent ${paymentIntent.id}`);
+      return paymentIntent;
+    } catch (error) {
+      console.error('Failed to create payment intent:', error);
+      throw new Error('Failed to create payment intent');
+    }
+  }
+
+  /**
+   * List invoices for a customer
+   * @param customerId - Stripe customer ID
+   * @param limit - Number of invoices to retrieve
+   * @returns List of invoices
+   */
+  async listInvoices(customerId: string, limit: number = 10): Promise<Stripe.Invoice[]> {
+    try {
+      const invoices = await stripe.invoices.list({
+        customer: customerId,
+        limit,
+      });
+      return invoices.data;
+    } catch (error) {
+      console.error('Failed to list invoices:', error);
+      throw new Error('Failed to list invoices');
+    }
+  }
+
+  /**
+   * Get upcoming invoice for a subscription
+   * @param subscriptionId - Stripe subscription ID
+   * @returns Upcoming invoice
+   */
+  async getUpcomingInvoice(subscriptionId: string): Promise<Stripe.Invoice> {
+    try {
+      const invoice = await stripe.invoices.retrieveUpcoming({
+        subscription: subscriptionId,
+      });
+      return invoice;
+    } catch (error) {
+      console.error('Failed to retrieve upcoming invoice:', error);
+      throw new Error('Failed to retrieve upcoming invoice');
+    }
+  }
 }
 
 export const stripeService = new StripeService();
