@@ -99,6 +99,27 @@ model Payment {
   @@index([stripePaymentIntentId])
 }
 
+model Invoice {
+  id                String    @id @default(cuid())
+  userId            String
+  stripeInvoiceId   String    @unique
+  subscriptionId    String?             // Optional link to subscription
+  amountDue         Int                 // Amount due in cents
+  amountPaid        Int                 // Amount paid in cents
+  status            InvoiceStatus
+  invoiceUrl        String?             // Hosted invoice URL
+  pdfUrl            String?             // PDF download URL
+  dueDate           DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeInvoiceId])
+}
+
 // Content upload and processing
 model Upload {
   id                String    @id @default(cuid())
@@ -566,4 +587,12 @@ enum PaymentStatus {
   REQUIRES_PAYMENT_METHOD  // Payment method required
   CANCELED            // Payment canceled
   FAILED              // Payment failed
+}
+
+enum InvoiceStatus {
+  DRAFT               // Invoice created but not finalized
+  OPEN                // Invoice finalized and sent to customer
+  PAID                // Invoice paid successfully
+  VOID                // Invoice voided
+  UNCOLLECTIBLE       // Invoice marked as uncollectible
 }
