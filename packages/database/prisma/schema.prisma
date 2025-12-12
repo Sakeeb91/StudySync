@@ -43,6 +43,9 @@ model User {
   notes             Note[]
   concepts          Concept[]
   betaTester        BetaTester?
+  subscriptions     Subscription[]
+  payments          Payment[]
+  invoices          Invoice[]
 }
 
 model Session {
@@ -52,6 +55,29 @@ model Session {
   expires           DateTime
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt         DateTime  @default(now())
+}
+
+// Payment & Subscription Models
+model Subscription {
+  id                    String    @id @default(cuid())
+  userId                String
+  stripeSubscriptionId  String    @unique
+  stripePriceId         String              // Stripe price ID for the plan
+  status                SubscriptionStatus
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean   @default(false)
+  canceledAt            DateTime?
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
 }
 
 // Content upload and processing
