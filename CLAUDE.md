@@ -157,6 +157,87 @@ GitHub Actions (`.github/workflows/ci.yml`):
 - PRs: Deploy preview
 - Main branch: Deploy production
 
+### CI/CD Best Practices (MUST FOLLOW)
+
+To ensure CI/CD checks pass on the first push, follow these rules when writing code:
+
+#### 1. TypeScript Strict Mode
+- **No unused variables**: Remove any variable that is declared but never used
+- **No unused imports**: Remove imports that aren't used in the file
+- **Use Prisma enums directly**: When working with Prisma enum fields (like `SubscriptionStatus`, `SubscriptionTier`), import and use the enum from `@prisma/client`:
+  ```typescript
+  import { SubscriptionStatus, SubscriptionTier } from '@prisma/client';
+
+  // CORRECT
+  const status = SubscriptionStatus.ACTIVE;
+
+  // WRONG - will fail TypeScript
+  const status = 'ACTIVE';
+  ```
+
+#### 2. Next.js 14 App Router Rules
+- **Wrap `useSearchParams()` in Suspense**: Any component using `useSearchParams()` must be wrapped in a Suspense boundary:
+  ```typescript
+  // CORRECT
+  function PageContent() {
+    const searchParams = useSearchParams();
+    // ...
+  }
+
+  export default function Page() {
+    return (
+      <Suspense fallback={<Loading />}>
+        <PageContent />
+      </Suspense>
+    );
+  }
+  ```
+- **Client components**: Add `"use client"` directive at top of files using React hooks
+- **Avoid `any` types**: Use proper TypeScript types instead of `any`
+
+#### 3. ESLint Rules
+- **No `@typescript-eslint/no-unused-vars` errors**: Check all imports and variables are used
+- **Avoid `@typescript-eslint/no-explicit-any`**: Use specific types or `unknown` instead
+- **Run `npm run lint` locally** before committing to catch issues early
+
+#### 4. External Library Compatibility
+- **Stripe SDK**: Use the API version that matches the installed SDK types
+  ```typescript
+  // Check package.json for stripe version, use matching apiVersion
+  apiVersion: '2025-11-17.clover'  // Must match SDK types
+  ```
+- **Type casting for SDK changes**: When SDK types don't match runtime properties:
+  ```typescript
+  // Cast to add missing properties
+  const sub = subscription as Stripe.Subscription & {
+    current_period_end: number;
+  };
+  ```
+
+#### 5. Pre-Push Checklist
+Before pushing code, run these commands locally:
+```bash
+npm run lint          # Must pass with no errors (warnings OK)
+npm run build         # Must complete successfully
+npm run test          # All tests must pass
+```
+
+#### 6. Common Fixes for CI Failures
+
+| Error | Fix |
+|-------|-----|
+| `'X' is defined but never used` | Remove the unused import/variable |
+| `Type 'string' is not assignable to type 'EnumType'` | Import and use the Prisma enum directly |
+| `useSearchParams() should be wrapped in suspense` | Wrap component in `<Suspense>` |
+| `Property 'X' does not exist on type` | Add type cast or update to correct API |
+| `Unexpected any` | Replace `any` with proper type or `unknown` |
+
+#### 7. Stripe-Specific Guidelines
+- Always import enums from Prisma for database operations
+- Use type assertions for Stripe webhook event data
+- Match Stripe API version to SDK types in `apps/api/src/config/stripe.ts`
+- Use `discounts` array instead of deprecated `promotion_code` property
+
 ## Docker
 
 `docker-compose.yml` provides PostgreSQL 15, Redis 7, MinIO (S3-compatible storage).
