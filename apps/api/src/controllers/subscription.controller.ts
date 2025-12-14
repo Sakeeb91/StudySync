@@ -5,7 +5,6 @@ import { getAllPlans, getPlanByTier } from '../config/pricing';
 import {
   getSubscriptionStatus,
   getSubscriptionLimits,
-  hasActiveSubscription,
 } from '../utils/subscription.utils';
 
 const prisma = new PrismaClient();
@@ -66,22 +65,74 @@ export class SubscriptionController {
       // Get or create Stripe customer
       const customer = await stripeService.getOrCreateCustomer(userId);
 
+      // Check if user has a .edu email for automatic student discount
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+
+      const isStudentEmail = user?.email?.toLowerCase().endsWith('.edu');
+
       // Create checkout session
+      // Note: allow_promotion_codes is enabled in the session, so users can enter promo codes at checkout
       const session = await stripeService.createCheckoutSession(
         customer.id,
         priceId,
         {
-          successUrl: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${process.env.FRONTEND_URL}/pricing`,
-          trialPeriodDays: billingPeriod === 'monthly' ? 0 : undefined, // No trial for monthly
+          successUrl: `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${process.env.FRONTEND_URL}/checkout/cancel`,
+          trialPeriodDays: billingPeriod === 'monthly' ? undefined : 7, // 7-day trial for yearly plans
           metadata: {
             userId,
             billingPeriod,
+            isStudentEmail: isStudentEmail ? 'true' : 'false',
           },
         }
       );
 
-      res.json({ sessionId: session.id, url: session.url });
+      res.json({
+        sessionId: session.id,
+        url: session.url,
+        studentDiscountApplied: isStudentEmail,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Validate a promo code
+   */
+  async validatePromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { code } = req.body;
+
+      if (!code) {
+        res.status(400).json({ error: 'Promo code is required' });
+        return;
+      }
+
+      // For now, check for known promo codes
+      const validCodes: Record<string, { discount: number; description: string }> = {
+        STUDENT20: { discount: 20, description: '20% student discount' },
+        LAUNCH10: { discount: 10, description: '10% launch discount' },
+        ANNUAL25: { discount: 25, description: '25% annual plan discount' },
+      };
+
+      const promo = validCodes[code.toUpperCase()];
+
+      if (promo) {
+        res.json({
+          valid: true,
+          discount: promo.discount,
+          message: promo.description,
+        });
+      } else {
+        res.json({
+          valid: false,
+          message: 'Invalid promo code',
+        });
+      }
     } catch (error) {
       next(error);
     }

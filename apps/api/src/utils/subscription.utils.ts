@@ -1,5 +1,5 @@
 import { PrismaClient, SubscriptionStatus, SubscriptionTier } from '@prisma/client';
-import { getPlanByTier, getFeatureLimit, hasFeature } from '../config/pricing';
+import { getFeatureLimit, hasFeature } from '../config/pricing';
 
 const prisma = new PrismaClient();
 
