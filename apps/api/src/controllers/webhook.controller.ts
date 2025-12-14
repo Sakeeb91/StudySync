@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { stripe, STRIPE_WEBHOOK_SECRET } from '../config/stripe';
-import { stripeService } from '../services/stripe.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
