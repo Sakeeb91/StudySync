@@ -75,19 +75,24 @@ export class WebhookController {
   private async handleSubscriptionUpdate(subscription: Stripe.Subscription): Promise<void> {
     console.log(`Processing subscription update: ${subscription.id}`);
 
+    // Cast subscription to access properties (Stripe SDK type changes)
+    const sub = subscription as Stripe.Subscription & {
+      current_period_end: number;
+    };
+
     // The stripeService.saveSubscriptionToDatabase() method handles all the logic
     // It's called automatically in subscription operations, but we can call it here too
     const user = await prisma.user.findFirst({
-      where: { stripeCustomerId: subscription.customer as string },
+      where: { stripeCustomerId: sub.customer as string },
     });
 
     if (!user) {
-      console.warn(`User not found for customer ${subscription.customer}`);
+      console.warn(`User not found for customer ${sub.customer}`);
       return;
     }
 
     // Update user's subscription status
-    const statusMap: Record<string, any> = {
+    const statusMap: Record<string, string> = {
       active: 'ACTIVE',
       past_due: 'PAST_DUE',
       canceled: 'CANCELED',
@@ -97,19 +102,19 @@ export class WebhookController {
       incomplete_expired: 'INCOMPLETE_EXPIRED',
     };
 
-    const subscriptionStatus = statusMap[subscription.status] || 'INACTIVE';
+    const subscriptionStatus = statusMap[sub.status] || 'INACTIVE';
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        stripeSubscriptionId: subscription.id,
+        stripeSubscriptionId: sub.id,
         subscriptionStatus,
-        subscriptionEnd: new Date(subscription.current_period_end * 1000),
-        trialEndsAt: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        subscriptionEnd: new Date(sub.current_period_end * 1000),
+        trialEndsAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
       },
     });
 
-    console.log(`✅ Updated subscription ${subscription.id} for user ${user.id}`);
+    console.log(`✅ Updated subscription ${sub.id} for user ${user.id}`);
   }
 
   /**
@@ -154,13 +159,16 @@ export class WebhookController {
 
     if (!user) return;
 
+    // Cast invoice to access subscription property
+    const inv = invoice as Stripe.Invoice & { subscription?: string };
+
     // Save invoice to database
     await prisma.invoice.upsert({
       where: { stripeInvoiceId: invoice.id },
       create: {
         userId: user.id,
         stripeInvoiceId: invoice.id,
-        subscriptionId: invoice.subscription as string | undefined,
+        subscriptionId: inv.subscription || undefined,
         amountDue: invoice.amount_due,
         amountPaid: invoice.amount_paid,
         status: 'PAID',

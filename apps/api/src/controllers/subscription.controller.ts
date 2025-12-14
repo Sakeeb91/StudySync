@@ -189,15 +189,18 @@ export class SubscriptionController {
         immediately
       );
 
+      // Cast to access period end property
+      const sub = subscription as typeof subscription & { current_period_end?: number };
+
       res.json({
         message: immediately
           ? 'Subscription canceled immediately'
           : 'Subscription will be canceled at the end of the billing period',
         subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          currentPeriodEnd: subscription.current_period_end,
+          id: sub.id,
+          status: sub.status,
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          currentPeriodEnd: sub.current_period_end,
         },
       });
     } catch (error) {

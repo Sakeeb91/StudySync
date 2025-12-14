@@ -259,7 +259,8 @@ export class StripeService {
       }
 
       if (options?.promotionCode) {
-        subscriptionData.promotion_code = options.promotionCode;
+        // Use discounts array for promotion codes
+        subscriptionData.discounts = [{ promotion_code: options.promotionCode }];
       }
 
       const subscription = await stripe.subscriptions.create(subscriptionData);
@@ -418,18 +419,24 @@ export class StripeService {
    */
   private async saveSubscriptionToDatabase(subscription: Stripe.Subscription): Promise<void> {
     try {
+      // Cast subscription to access properties (Stripe SDK type changes)
+      const sub = subscription as Stripe.Subscription & {
+        current_period_start: number;
+        current_period_end: number;
+      };
+
       // Get user from customer ID
       const user = await prisma.user.findFirst({
-        where: { stripeCustomerId: subscription.customer as string },
+        where: { stripeCustomerId: sub.customer as string },
       });
 
       if (!user) {
-        console.warn(`User not found for customer ${subscription.customer}`);
+        console.warn(`User not found for customer ${sub.customer}`);
         return;
       }
 
       // Map Stripe subscription status to our enum
-      const statusMap: Record<string, any> = {
+      const statusMap: Record<string, string> = {
         active: 'ACTIVE',
         past_due: 'PAST_DUE',
         canceled: 'CANCELED',
@@ -439,10 +446,10 @@ export class StripeService {
         incomplete_expired: 'INCOMPLETE_EXPIRED',
       };
 
-      const subscriptionStatus = statusMap[subscription.status] || 'INACTIVE';
+      const subscriptionStatus = statusMap[sub.status] || 'INACTIVE';
 
       // Determine subscription tier from price ID
-      const priceId = subscription.items.data[0].price.id;
+      const priceId = sub.items.data[0].price.id;
       let subscriptionTier: 'FREE' | 'PREMIUM' | 'STUDENT_PLUS' | 'UNIVERSITY' = 'FREE';
 
       // This will be replaced by actual price IDs from pricing config
@@ -456,25 +463,25 @@ export class StripeService {
 
       // Upsert subscription in database
       await prisma.subscription.upsert({
-        where: { stripeSubscriptionId: subscription.id },
+        where: { stripeSubscriptionId: sub.id },
         create: {
           userId: user.id,
-          stripeSubscriptionId: subscription.id,
+          stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
           status: subscriptionStatus,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-          trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
-          trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+          currentPeriodStart: new Date(sub.current_period_start * 1000),
+          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
+          trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
+          trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
         },
         update: {
           status: subscriptionStatus,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+          currentPeriodStart: new Date(sub.current_period_start * 1000),
+          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
           stripePriceId: priceId,
         },
       });
@@ -483,11 +490,11 @@ export class StripeService {
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          stripeSubscriptionId: subscription.id,
+          stripeSubscriptionId: sub.id,
           subscriptionStatus,
           subscriptionTier,
-          subscriptionEnd: new Date(subscription.current_period_end * 1000),
-          trialEndsAt: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+          subscriptionEnd: new Date(sub.current_period_end * 1000),
+          trialEndsAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
         },
       });
 
@@ -628,9 +635,9 @@ export class StripeService {
    * @param subscriptionId - Stripe subscription ID
    * @returns Upcoming invoice
    */
-  async getUpcomingInvoice(subscriptionId: string): Promise<Stripe.Invoice> {
+  async getUpcomingInvoice(subscriptionId: string): Promise<Stripe.UpcomingInvoice> {
     try {
-      const invoice = await stripe.invoices.retrieveUpcoming({
+      const invoice = await stripe.invoices.createPreview({
         subscription: subscriptionId,
       });
       return invoice;

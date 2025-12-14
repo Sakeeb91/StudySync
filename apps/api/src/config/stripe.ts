@@ -9,7 +9,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 // Initialize Stripe with the secret key
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-11-20.acacia', // Use the latest API version
+  apiVersion: '2025-11-17.clover', // Use the latest API version matching SDK types
   typescript: true,
   appInfo: {
     name: 'StudySync',
