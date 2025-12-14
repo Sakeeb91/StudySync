@@ -87,6 +87,52 @@ Key models in `packages/database/prisma/schema.prisma`:
 ### Request Validation
 All inputs validated with Zod schemas. Auth schemas exported from `@studysync/auth`.
 
+### Payment & Subscription System (SSC-16)
+Stripe integration for subscription management with feature gating.
+
+**Backend Components:**
+- `apps/api/src/config/stripe.ts` - Stripe client initialization
+- `apps/api/src/config/pricing.ts` - Subscription tiers and feature limits
+- `apps/api/src/services/stripe.service.ts` - Customer, subscription, payment operations
+- `apps/api/src/controllers/subscription.controller.ts` - Subscription endpoints
+- `apps/api/src/controllers/webhook.controller.ts` - Stripe webhook handlers
+- `apps/api/src/middleware/subscription.middleware.ts` - Usage limit enforcement
+
+**Frontend Components:**
+- `apps/web/src/contexts/subscription-context.tsx` - Global subscription state
+- `apps/web/src/lib/subscription-api.ts` - Subscription API client
+- `apps/web/src/components/subscription/FeatureGate.tsx` - Premium feature wrapper
+- `apps/web/src/components/subscription/UpgradeDialog.tsx` - Upgrade prompt modal
+- `apps/web/src/app/pricing/page.tsx` - Pricing page with checkout flow
+- `apps/web/src/app/(dashboard)/subscription/page.tsx` - Subscription management
+- `apps/web/src/app/checkout/success/page.tsx` - Checkout success page
+- `apps/web/src/app/checkout/cancel/page.tsx` - Checkout cancel page
+
+**Subscription Tiers:**
+- FREE: 1 course, 3 flashcard sets, 5 quizzes, basic AI
+- PREMIUM ($9.99/mo): Unlimited everything, knowledge graph, analytics
+- STUDENT_PLUS ($14.99/mo): Premium + exam prediction, AI tutoring, 7-day trial
+- UNIVERSITY: Custom enterprise pricing
+
+**Subscription API Endpoints:**
+- `GET /api/subscriptions/plans` - Get all plans (public)
+- `GET /api/subscriptions/current` - Current subscription status
+- `POST /api/subscriptions/checkout` - Create Stripe checkout session
+- `POST /api/subscriptions/portal` - Create Stripe billing portal
+- `PUT /api/subscriptions/cancel` - Cancel subscription
+- `PUT /api/subscriptions/reactivate` - Reactivate canceled subscription
+- `GET /api/subscriptions/invoices` - Invoice history
+- `GET /api/subscriptions/usage` - Usage statistics
+- `POST /api/subscriptions/promo` - Validate promo code
+- `POST /api/subscriptions/webhook` - Stripe webhook receiver
+
+**Feature Gating:**
+- Knowledge graph routes require PREMIUM tier or higher
+- Flashcard/quiz/upload creation checks tier limits
+- `requireSubscription(tiers)` middleware for tier enforcement
+- `requireFeature(feature)` middleware for feature access
+- Usage limits enforced via `checkFlashcardSetLimit`, `checkQuizLimit`, `checkUploadLimit`
+
 ## Environment Variables
 
 Required (see `.env.example`):
@@ -94,6 +140,13 @@ Required (see `.env.example`):
 - `JWT_SECRET` / `JWT_REFRESH_SECRET` - Auth tokens
 - `REDIS_URL` - Caching
 - `OPENAI_API_KEY` - AI features
+- `STRIPE_SECRET_KEY` - Stripe API secret key
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
+- `STRIPE_PRICE_PREMIUM_MONTHLY` - Stripe price ID for Premium monthly
+- `STRIPE_PRICE_PREMIUM_YEARLY` - Stripe price ID for Premium yearly
+- `STRIPE_PRICE_STUDENT_PLUS_MONTHLY` - Stripe price ID for Student Plus monthly
+- `STRIPE_PRICE_STUDENT_PLUS_YEARLY` - Stripe price ID for Student Plus yearly
 
 Ports: Frontend :3000, API :3001, PostgreSQL :5432, Redis :6379, MinIO :9001
 
