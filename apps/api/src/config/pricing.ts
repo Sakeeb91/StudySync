@@ -102,6 +102,30 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
       exportData: true,
     },
   },
+  UNIVERSITY: {
+    id: 'university',
+    name: 'University',
+    tier: 'UNIVERSITY',
+    description: 'Enterprise-grade solution for universities with bulk licensing and admin tools',
+    monthlyPrice: 0, // Custom pricing - contact sales
+    yearlyPrice: 0, // Custom pricing - contact sales
+    stripePriceIdMonthly: process.env.STRIPE_PRICE_UNIVERSITY_MONTHLY,
+    stripePriceIdYearly: process.env.STRIPE_PRICE_UNIVERSITY_YEARLY,
+    features: {
+      maxCourses: null,
+      maxFlashcardSets: null,
+      maxQuizzes: null,
+      aiFlashcards: true,
+      aiQuizzes: true,
+      knowledgeGraph: true,
+      examPrediction: true,
+      analytics: true,
+      assignmentHelp: true,
+      prioritySupport: true,
+      mobileApp: true,
+      exportData: true,
+    },
+  },
 };
 
 /**
