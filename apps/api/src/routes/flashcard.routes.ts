@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { flashcardController } from '../controllers/flashcard.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
+import { checkFlashcardSetLimit } from '../middleware/subscription.middleware';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.use(authenticateToken);
 // ============================================
 
 // POST /api/flashcards - Create a new flashcard set
-router.post('/', (req: Request, res: Response, next: NextFunction) =>
+router.post('/', checkFlashcardSetLimit, (req: Request, res: Response, next: NextFunction) =>
   flashcardController.createSet(req, res, next)
 );
 

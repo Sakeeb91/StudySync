@@ -3,6 +3,7 @@ import multer from 'multer';
 import { rateLimit } from 'express-rate-limit';
 import { uploadController } from '../controllers/upload.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
+import { checkUploadLimit } from '../middleware/subscription.middleware';
 
 const router = Router();
 
@@ -84,6 +85,7 @@ router.use(authenticateToken);
 router.post(
   '/',
   uploadLimiter,
+  checkUploadLimit,
   upload.single('file'),
   handleMulterError,
   (req: Request, res: Response, next: NextFunction) =>
@@ -94,6 +96,7 @@ router.post(
 router.post(
   '/batch',
   uploadLimiter,
+  checkUploadLimit,
   upload.array('files', 10),
   handleMulterError,
   (req: Request, res: Response, next: NextFunction) =>

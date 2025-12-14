@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { knowledgeGraphController } from '../controllers/knowledgeGraph.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { authenticateToken, requireFeature } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -23,8 +23,9 @@ const searchLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// All routes require authentication
+// All routes require authentication and knowledge_graph feature (premium)
 router.use(authenticateToken);
+router.use(requireFeature('knowledge_graph'));
 
 // ============================================
 // CONCEPTS

@@ -73,6 +73,8 @@ export const requireSubscription = (tiers: string[]) => {
 };
 
 // New middleware: Require active subscription
+// Note: This checks the subscription tier from JWT payload
+// For more granular status checks, use database lookup
 export const requireActiveSubscription = () => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
@@ -80,13 +82,62 @@ export const requireActiveSubscription = () => {
       return;
     }
 
-    const subscriptionStatuses = ['ACTIVE', 'TRIALING'];
-    const userStatus = req.user.subscriptionStatus || 'INACTIVE';
+    // Check if user has a paid tier (subscription status is tracked in database)
+    const tier = req.user.subscriptionTier || 'FREE';
 
-    if (!subscriptionStatuses.includes(userStatus)) {
+    if (tier === 'FREE') {
       res.status(403).json({
         error: 'This feature requires an active subscription',
-        currentStatus: userStatus,
+        currentTier: tier,
+        upgradeUrl: '/pricing',
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+// Feature access middleware
+export const requireFeature = (feature: string) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const tier = req.user.subscriptionTier || 'FREE';
+
+    // Define which features are available per tier
+    const tierFeatures: Record<string, string[]> = {
+      FREE: ['basic_flashcards', 'basic_quizzes', 'basic_uploads'],
+      PREMIUM: [
+        'basic_flashcards', 'basic_quizzes', 'basic_uploads',
+        'unlimited_flashcards', 'unlimited_quizzes', 'unlimited_uploads',
+        'knowledge_graph', 'analytics', 'advanced_ai',
+      ],
+      STUDENT_PLUS: [
+        'basic_flashcards', 'basic_quizzes', 'basic_uploads',
+        'unlimited_flashcards', 'unlimited_quizzes', 'unlimited_uploads',
+        'knowledge_graph', 'analytics', 'advanced_ai',
+        'exam_prediction', 'assignment_help', 'ai_tutoring',
+      ],
+      UNIVERSITY: [
+        'basic_flashcards', 'basic_quizzes', 'basic_uploads',
+        'unlimited_flashcards', 'unlimited_quizzes', 'unlimited_uploads',
+        'knowledge_graph', 'analytics', 'advanced_ai',
+        'exam_prediction', 'assignment_help', 'ai_tutoring',
+        'admin_dashboard', 'bulk_licenses', 'custom_branding',
+      ],
+    };
+
+    const allowedFeatures = tierFeatures[tier] || tierFeatures.FREE;
+
+    if (!allowedFeatures.includes(feature)) {
+      res.status(403).json({
+        error: `This feature requires a premium subscription`,
+        feature,
+        currentTier: tier,
         upgradeUrl: '/pricing',
       });
       return;

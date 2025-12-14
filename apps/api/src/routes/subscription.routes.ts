@@ -76,6 +76,14 @@ router.get('/usage', authenticateToken, (req: Request, res: Response, next: Next
   subscriptionController.getUsageStats(req, res, next)
 );
 
+/**
+ * POST /api/subscriptions/promo
+ * Validate a promo code
+ */
+router.post('/promo', authenticateToken, (req: Request, res: Response, next: NextFunction) =>
+  subscriptionController.validatePromoCode(req, res, next)
+);
+
 // Webhook routes (Stripe signature verification)
 
 /**

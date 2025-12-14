@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { quizController } from '../controllers/quiz.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
+import { checkQuizLimit } from '../middleware/subscription.middleware';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.use(authenticateToken);
 // ============================================
 
 // POST /api/quizzes - Create a new quiz
-router.post('/', (req: Request, res: Response, next: NextFunction) =>
+router.post('/', checkQuizLimit, (req: Request, res: Response, next: NextFunction) =>
   quizController.createQuiz(req, res, next)
 );
 
