@@ -1,9 +1,14 @@
 import { DashboardLayout } from "@/components/layout";
+import { SubscriptionProvider } from "@/contexts/subscription-context";
 
 export default function DashboardRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <SubscriptionProvider>
+      <DashboardLayout>{children}</DashboardLayout>
+    </SubscriptionProvider>
+  );
 }
