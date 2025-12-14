@@ -1,5 +1,5 @@
 import { stripe } from '../config/stripe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SubscriptionStatus, SubscriptionTier } from '@prisma/client';
 import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
@@ -436,29 +436,29 @@ export class StripeService {
       }
 
       // Map Stripe subscription status to our enum
-      const statusMap: Record<string, string> = {
-        active: 'ACTIVE',
-        past_due: 'PAST_DUE',
-        canceled: 'CANCELED',
-        unpaid: 'PAST_DUE',
-        trialing: 'TRIALING',
-        incomplete: 'INCOMPLETE',
-        incomplete_expired: 'INCOMPLETE_EXPIRED',
+      const statusMap: Record<string, SubscriptionStatus> = {
+        active: SubscriptionStatus.ACTIVE,
+        past_due: SubscriptionStatus.PAST_DUE,
+        canceled: SubscriptionStatus.CANCELED,
+        unpaid: SubscriptionStatus.PAST_DUE,
+        trialing: SubscriptionStatus.TRIALING,
+        incomplete: SubscriptionStatus.INCOMPLETE,
+        incomplete_expired: SubscriptionStatus.INCOMPLETE_EXPIRED,
       };
 
-      const subscriptionStatus = statusMap[sub.status] || 'INACTIVE';
+      const subscriptionStatus = statusMap[sub.status] || SubscriptionStatus.INACTIVE;
 
       // Determine subscription tier from price ID
       const priceId = sub.items.data[0].price.id;
-      let subscriptionTier: 'FREE' | 'PREMIUM' | 'STUDENT_PLUS' | 'UNIVERSITY' = 'FREE';
+      let subscriptionTier: SubscriptionTier = SubscriptionTier.FREE;
 
       // This will be replaced by actual price IDs from pricing config
       if (priceId.includes('premium')) {
-        subscriptionTier = 'PREMIUM';
+        subscriptionTier = SubscriptionTier.PREMIUM;
       } else if (priceId.includes('student_plus') || priceId.includes('plus')) {
-        subscriptionTier = 'STUDENT_PLUS';
+        subscriptionTier = SubscriptionTier.STUDENT_PLUS;
       } else if (priceId.includes('university')) {
-        subscriptionTier = 'UNIVERSITY';
+        subscriptionTier = SubscriptionTier.UNIVERSITY;
       }
 
       // Upsert subscription in database

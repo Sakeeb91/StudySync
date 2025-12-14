@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { stripe, STRIPE_WEBHOOK_SECRET } from '../config/stripe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SubscriptionStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -92,17 +92,17 @@ export class WebhookController {
     }
 
     // Update user's subscription status
-    const statusMap: Record<string, string> = {
-      active: 'ACTIVE',
-      past_due: 'PAST_DUE',
-      canceled: 'CANCELED',
-      unpaid: 'PAST_DUE',
-      trialing: 'TRIALING',
-      incomplete: 'INCOMPLETE',
-      incomplete_expired: 'INCOMPLETE_EXPIRED',
+    const statusMap: Record<string, SubscriptionStatus> = {
+      active: SubscriptionStatus.ACTIVE,
+      past_due: SubscriptionStatus.PAST_DUE,
+      canceled: SubscriptionStatus.CANCELED,
+      unpaid: SubscriptionStatus.PAST_DUE,
+      trialing: SubscriptionStatus.TRIALING,
+      incomplete: SubscriptionStatus.INCOMPLETE,
+      incomplete_expired: SubscriptionStatus.INCOMPLETE_EXPIRED,
     };
 
-    const subscriptionStatus = statusMap[sub.status] || 'INACTIVE';
+    const subscriptionStatus = statusMap[sub.status] || SubscriptionStatus.INACTIVE;
 
     await prisma.user.update({
       where: { id: user.id },
