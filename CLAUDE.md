@@ -243,3 +243,302 @@ npm run test          # All tests must pass
 `docker-compose.yml` provides PostgreSQL 15, Redis 7, MinIO (S3-compatible storage).
 
 API Dockerfile uses multi-stage build with non-root user.
+
+## Creating GitHub Issues from Linear
+
+This section documents the standard process for creating GitHub issues and implementation plans from Linear issues.
+
+### Workflow Overview
+
+1. **Fetch Linear Issue** - Get details from Linear API
+2. **Create Implementation Plan** - Write comprehensive `docs/SSC-XX-IMPLEMENTATION-PLAN.md`
+3. **Create GitHub Issue** - Create issue with standardized format
+4. **Commit & Push** - Commit implementation plan so links work
+5. **Update Meta Tracker** - Update issue #3 with new links
+6. **Verify CI/CD** - Ensure all checks pass
+
+### Fetching Linear Issue Details
+
+```bash
+curl -s -X POST https://api.linear.app/graphql \
+  -H "Content-Type: application/json" \
+  -H "Authorization: $LINEAR_API_KEY" \
+  -d '{"query": "{ issue(id: \"SSC-XX\") { identifier title description state { name } priorityLabel labels { nodes { name } } } }"}'
+```
+
+### Implementation Plan Format (`docs/SSC-XX-IMPLEMENTATION-PLAN.md`)
+
+Every implementation plan should follow this structure:
+
+```markdown
+# SSC-XX: [Title] - Implementation Plan
+
+## Overview
+[2-3 paragraph description of the feature and its purpose]
+
+**Priority**: [High/Medium/Low]
+**Feature Type**: [Premium Feature / B2B Feature / Cross-Platform, etc.]
+
+## Tech Stack
+- **Backend**: [Technologies]
+- **Frontend**: [Technologies]
+- **Database**: [Technologies]
+- **Other**: [Any additional tech]
+
+## Current State Analysis
+
+### What Already Exists
+- [List existing infrastructure that can be leveraged]
+
+### What Needs to Be Built
+1. [Numbered list of components to build]
+
+## Implementation Stages (N Atomic Commits)
+
+### Phase 1: [Phase Name] (Commits 1-X)
+
+**Commit 1**: [Commit description]
+- [Details]
+- Code examples in fenced blocks
+
+**Commit 2**: [Commit description]
+...
+
+### Phase 2: [Phase Name] (Commits X-Y)
+...
+
+## API Endpoints Summary
+
+### [Endpoint Category]
+```
+METHOD /api/endpoint    - Description (auth requirements)
+```
+
+## Database Schema Changes
+
+### New Models
+```prisma
+model ModelName {
+  // Schema definition
+}
+```
+
+## Component Structure
+
+```
+apps/web/src/
+├── app/
+│   └── feature/
+├── components/
+│   └── feature/
+```
+
+## Feature Requirements Checklist
+
+### [Category]
+- [ ] Feature 1
+- [ ] Feature 2
+
+## Success Criteria
+
+- [ ] All N commits completed and passing CI
+- [ ] [Specific measurable criteria]
+
+## Integration with Existing Features
+
+### [Feature Name]
+- [How it integrates]
+
+## Dependencies
+
+This feature depends on:
+- [SSC-XX] ✅ Complete
+- [SSC-YY] - [Status]
+
+## Future Enhancements
+
+1. [Future enhancement 1]
+2. [Future enhancement 2]
+
+## Notes
+
+- [Important implementation notes]
+```
+
+### GitHub Issue Format
+
+Create issues using `gh issue create` with this structure:
+
+```markdown
+# [Feature Title]
+
+**Linear Issue**: SSC-XX
+**Priority**: [High/Medium/Low]
+**Feature Type**: [Type description]
+
+## Overview
+
+[Brief description - 2-3 sentences]
+
+## Implementation Plan
+
+📄 **Full implementation plan**: [docs/SSC-XX-IMPLEMENTATION-PLAN.md](link)
+
+---
+
+## Phase 1: [Phase Name] (Commits 1-X)
+
+### Commit 1: [Description]
+
+\`\`\`prisma
+// Key schema or code snippet
+\`\`\`
+
+### Commit 2: [Description]
+...
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | \`/api/...\` | Description |
+| POST | \`/api/...\` | Description |
+
+---
+
+## Checklist
+
+### [Category]
+- [ ] Task 1
+- [ ] Task 2
+
+---
+
+## Success Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+---
+
+## Dependencies
+
+This feature depends on:
+- [Dependency] ✅ Complete
+```
+
+### Key Formatting Rules
+
+1. **Use HEREDOC for issue body** - Prevents shell escaping issues:
+   ```bash
+   gh issue create --title "SSC-XX: Title" --body "$(cat <<'EOF'
+   Issue content here...
+   EOF
+   )"
+   ```
+
+2. **Escape backticks in code blocks** - Use `\`\`\`` in the heredoc for markdown code blocks
+
+3. **Link to implementation plan** - Always include the full GitHub URL:
+   ```markdown
+   📄 **Full implementation plan**: [docs/SSC-XX-IMPLEMENTATION-PLAN.md](https://github.com/Sakeeb91/StudySync/blob/main/docs/SSC-XX-IMPLEMENTATION-PLAN.md)
+   ```
+
+4. **Use tables for API endpoints** - Makes them scannable:
+   ```markdown
+   | Method | Endpoint | Description |
+   |--------|----------|-------------|
+   | GET | `/api/resource` | Get resource |
+   ```
+
+5. **Organize with horizontal rules** - Use `---` between major sections
+
+6. **Checklist format** - Use `- [ ]` for actionable items
+
+### Updating the Meta Tracker (Issue #3)
+
+After creating the issue and pushing the implementation plan:
+
+1. **Update the Phase 2 table** - Add the new issue link and implementation plan link:
+   ```markdown
+   | SSC-XX | Feature Title | Priority | 📋 Backlog | [#N](issue-url) | [SSC-XX Plan](plan-url) |
+   ```
+
+2. **Update Implementation Priority Order** - Add checkmarks:
+   ```markdown
+   X. **SSC-XX**: Feature Title
+      - [x] Implementation plan created
+      - [x] GitHub issue created: [#N](url)
+      - [ ] Implementation started
+      - [ ] Implementation complete
+   ```
+
+3. **Update Subscription Feature Matrix** - If feature affects tiers:
+   ```markdown
+   | Feature (SSC-XX) | ❌ | ✅ | ✅ | ✅ |
+   ```
+
+### Commit Message Format
+
+For implementation plans:
+```
+docs: add implementation plan for SSC-XX [Feature Title]
+
+Comprehensive plan covering:
+- [Key aspect 1]
+- [Key aspect 2]
+- [Key aspect 3]
+- [Number] atomic commits implementation strategy
+- [Additional details]
+```
+
+### Complete Example Workflow
+
+```bash
+# 1. Fetch Linear issue
+curl -s -X POST https://api.linear.app/graphql \
+  -H "Content-Type: application/json" \
+  -H "Authorization: $LINEAR_API_KEY" \
+  -d '{"query": "{ issue(id: \"SSC-XX\") { ... } }"}'
+
+# 2. Create implementation plan (write to docs/SSC-XX-IMPLEMENTATION-PLAN.md)
+
+# 3. Create GitHub issue
+gh issue create --title "SSC-XX: Feature Title" --body "$(cat <<'EOF'
+# Feature Title
+...
+EOF
+)"
+
+# 4. Commit and push implementation plan
+git add docs/SSC-XX-IMPLEMENTATION-PLAN.md
+git commit -m "docs: add implementation plan for SSC-XX Feature Title
+
+Comprehensive plan covering:
+- Detail 1
+- Detail 2
+"
+git push
+
+# 5. Verify CI/CD
+gh run list --limit 1
+# Wait for completion, then verify success
+
+# 6. Update meta tracker (issue #3)
+gh issue edit 3 --body "$(cat <<'EOF'
+# Updated meta tracker content...
+EOF
+)"
+```
+
+### Existing Implementation Plans
+
+Reference these for format examples:
+- `docs/SSC-13-IMPLEMENTATION-PLAN.md` - Assignment Brainstorming (22 commits, AI features)
+- `docs/SSC-14-IMPLEMENTATION-PLAN.md` - Exam Prediction (18 commits, AI + analytics)
+- `docs/SSC-15-IMPLEMENTATION-PLAN.md` - Mobile App (25 commits, React Native)
+- `docs/SSC-16-IMPLEMENTATION-PLAN.md` - Payment System (Stripe integration)
+- `docs/SSC-17-IMPLEMENTATION-PLAN.md` - Analytics Dashboard (20 commits, charts)
+- `docs/SSC-18-IMPLEMENTATION-PLAN.md` - University Partnerships (24 commits, B2B)
